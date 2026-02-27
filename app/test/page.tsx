@@ -1,14 +1,26 @@
-import { supabase } from '@/lib/supabase'
+'use client'
 
-export default async function TestPage() {
-  const { data, error } = await supabase
-    .from('projects')
-    .select('*')
+export default function TestPage() {
+  const handleTest = async () => {
+    const res = await fetch('/api/generate-requirements', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        specification: 'User can create an account'
+      })
+    })
+
+    const data = await res.json()
+    console.log('Status:', res.status)
+    console.log('Response:', data)
+  }
 
   return (
-    <div style={{ padding: 20 }}>
-      <h1>Test Supabase Connection</h1>
-      <pre>{JSON.stringify({ data, error }, null, 2)}</pre>
+    <div style={{ padding: 40 }}>
+      <h1>Test API</h1>
+      <button onClick={handleTest}>
+        Test generate-requirements
+      </button>
     </div>
   )
 }
