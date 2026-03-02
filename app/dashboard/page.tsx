@@ -4,13 +4,18 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 
-type Project = { id: string; name: string; created_at: string | null }
+type Project = { id: string; title: string; created_at: string | null }
 
 export default function Dashboard() {
   const router = useRouter()
-  const [projects, setProjects] = useState<Project[]>([])
+      const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
+  const [specInput, setSpecInput] = useState("")
+
+    // États pour le bloc IA temporaire
+  const [requirements, setRequirements] = useState<any[]>([])
+  const [aiLoading, setAiLoading] = useState(false)
 
   const fetchProjects = async () => {
     setError("")
@@ -18,7 +23,7 @@ export default function Dashboard() {
 
     const { data, error } = await supabase
       .from("projects")
-      .select("id, name, created_at")
+      .select("id, title, created_at")
       .order("created_at", { ascending: false })
 
     if (error) {
@@ -42,44 +47,101 @@ export default function Dashboard() {
     router.push("/login")
   }
 
-  const handleCreateProject = async () => {
+    
+
+    const handleGenerateRequirements = async () => {
     setError("")
-    const { error } = await supabase.from("projects").insert({ name: "Projet test" })
-    if (error) {
-      console.error("Erreur insert project:", error)
-      setError(error.message)
+    
+    if (specInput.trim() === "") {
+      setError("La spécification est obligatoire")
       return
     }
-    await fetchProjects() // refresh liste après création
+
+    setAiLoading(true)
+    setRequirements([])
+
+    try {
+      const res = await fetch("/api/generate-requirements", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ specification: specInput }),
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+        setRequirements(data.requirements || [])
+        setSpecInput("")
+        await fetchProjects()
+      } else {
+        const text = await res.text()
+        setError(`Erreur ${res.status} : ${text}`)
+      }
+    } catch (err: any) {
+      setError(`Erreur réseau : ${err.message}`)
+    } finally {
+      setAiLoading(false)
+    }
   }
 
-  return (
+    return (
     <div style={{ padding: 20 }}>
-      <h1>Dashboard</h1>
-
-      <div style={{ display: "flex", gap: 10 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+        <h1>Dashboard</h1>
         <button onClick={handleLogout}>Logout</button>
-        <button onClick={handleCreateProject}>Créer un projet</button>
       </div>
 
-      <hr style={{ margin: "20px 0" }} />
+      {/* Container principal avec 2 colonnes */}
+      <div style={{ display: "flex", gap: 20 }}>
+        {/* Colonne gauche - Sidebar */}
+        <div style={{ width: 250, flexShrink: 0 }}>
+          <h2>Mes projets</h2>
 
-      <h2>Mes projets</h2>
+          {loading && <p>Chargement…</p>}
+          {!loading && error && <p style={{ color: "red" }}>Erreur : {error}</p>}
+          {!loading && !error && projects.length === 0 && <p>Aucun projet pour le moment.</p>}
 
-      {loading && <p>Chargement…</p>}
-      {!loading && error && <p style={{ color: "red" }}>Erreur : {error}</p>}
-      {!loading && !error && projects.length === 0 && <p>Aucun projet pour le moment.</p>}
+          {!loading && !error && projects.length > 0 && (
+            <ul>
+              {projects.map((project) => (
+                <li key={project.id}>
+                  <strong>{project.title}</strong>
+                  {project.created_at ? ` — ${new Date(project.created_at).toLocaleString("fr-FR")}` : ""}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
 
-      {!loading && !error && projects.length > 0 && (
-        <ul>
-          {projects.map((project) => (
-            <li key={project.id}>
-              <strong>{project.name}</strong>
-              {project.created_at ? ` — ${new Date(project.created_at).toLocaleString("fr-FR")}` : ""}
-            </li>
-          ))}
-        </ul>
-      )}
+        {/* Colonne droite - Workspace */}
+        <div style={{ flex: 1 }}>
+          <div>
+            <textarea
+              value={specInput}
+              onChange={(e) => setSpecInput(e.target.value)}
+              placeholder="Collez votre spécification ici..."
+              style={{ width: "100%", minHeight: 100, padding: 8 }}
+            />
+            <button onClick={handleGenerateRequirements} disabled={aiLoading} style={{ marginTop: 10 }}>
+              Générer les requirements
+            </button>
+          </div>
+
+          {aiLoading && <p style={{ marginTop: 10 }}>Génération…</p>}
+
+          {!aiLoading && requirements.length > 0 && (
+            <div style={{ marginTop: 20 }}>
+              <h3>Requirements générés</h3>
+              <ul>
+                {requirements.map((req: any, idx: number) => (
+                  <li key={idx}>
+                    <strong>{req.req_code}</strong> : {req.description}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
