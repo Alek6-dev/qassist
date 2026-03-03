@@ -227,6 +227,71 @@ console.log("AI Response status:", anthropicResponse.status)
       )
      }
 
+    // Génération des clarifications
+    try {
+      const clarApiKey = (process.env.ANTHROPIC_API_KEY || '').trim()
+      const requirementsList = requirements
+        .map((r: any) => `- ${r.req_code}: ${r.description}`)
+        .join('\n')
+
+      const clarResponse = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": clarApiKey,
+          "anthropic-version": "2023-06-01"
+        },
+        body: JSON.stringify({
+          model: "claude-3-haiku-20240307",
+          max_tokens: 600,
+          messages: [
+            {
+              role: "user",
+              content: `Génère des clarifications en français pour les exigences suivantes.
+Retourne UNIQUEMENT un JSON valide, sans texte avant ni après.
+Format strict :
+{"clarifications":[{"type":"requirement","element_reference":"REQ-001","explanation":"...","recommendation":"..."}]}
+
+Exigences :
+${requirementsList}`
+            }
+          ]
+        })
+      })
+
+      if (clarResponse.ok) {
+        const clarRaw = await clarResponse.json()
+        const clarText = clarRaw.content?.[0]?.text ?? ''
+
+        if (clarText) {
+          const clarJsonStr = extractJSON(clarText)
+
+          if (clarJsonStr) {
+            let parsedClar: any
+            try {
+              parsedClar = JSON.parse(clarJsonStr)
+            } catch {
+              parsedClar = null
+            }
+
+            if (parsedClar && Array.isArray(parsedClar.clarifications)) {
+              const clarificationsToInsert = parsedClar.clarifications.map((c: any) => ({
+                project_id: project.id,
+                type: c.type,
+                element_reference: c.element_reference,
+                explanation: c.explanation,
+                recommendation: c.recommendation,
+              }))
+
+              await supabase.from('clarifications').insert(clarificationsToInsert)
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Erreur lors de la génération des clarifications:', err)
+    }
+
 return NextResponse.json({ project, requirements }, { status: 200 })
 
   } catch {

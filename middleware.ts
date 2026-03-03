@@ -41,7 +41,11 @@ const supabase = createServerClient(
   )
   console.log("--------------------------")
 
-  if (request.nextUrl.pathname.startsWith("/dashboard") && !session) {
+  const isProtected =
+    request.nextUrl.pathname.startsWith("/dashboard") ||
+    request.nextUrl.pathname.startsWith("/project")
+
+  if (isProtected && !session) {
     const url = request.nextUrl.clone()
     url.pathname = "/login"
     return NextResponse.redirect(url)
@@ -51,5 +55,5 @@ const supabase = createServerClient(
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*"],
+  matcher: ["/dashboard/:path*", "/project/:path*"],
 }

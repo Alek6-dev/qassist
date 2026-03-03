@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { supabase } from "@/lib/supabase"
 
 type Project = { id: string; title: string; created_at: string | null }
@@ -104,7 +105,9 @@ export default function Dashboard() {
             <ul>
               {projects.map((project) => (
                 <li key={project.id}>
-                  <strong>{project.title}</strong>
+                  <Link href={`/project/${project.id}`}>
+                    <strong>{project.title}</strong>
+                  </Link>
                   {project.created_at ? ` — ${new Date(project.created_at).toLocaleString("fr-FR")}` : ""}
                 </li>
               ))}
