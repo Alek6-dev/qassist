@@ -2,21 +2,145 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import Link from "next/link"
 import { supabase } from "@/lib/supabase"
+import { Sidebar } from "@/components/dashboard/Sidebar"
+import { WorkspaceEmpty } from "@/components/dashboard/WorkspaceEmpty"
+import { WorkspaceProject } from "@/components/dashboard/WorkspaceProject"
+import { User } from "lucide-react"
 
 type Project = { id: string; title: string; created_at: string | null }
 
 export default function Dashboard() {
   const router = useRouter()
-      const [projects, setProjects] = useState<Project[]>([])
+  const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [specInput, setSpecInput] = useState("")
 
-    // États pour le bloc IA temporaire
   const [requirements, setRequirements] = useState<any[]>([])
   const [aiLoading, setAiLoading] = useState(false)
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
+  const [editingCell, setEditingCell] = useState<{ id: string; field: "req_code" | "description" } | null>(null)
+  const [editingValue, setEditingValue] = useState("")
+  const [activeView, setActiveView] = useState<"requirements" | "testcases">("requirements")
+  const [testCases, setTestCases] = useState<any[]>([])
+  const [tcLoading, setTcLoading] = useState(false)
+  const [clarifications, setClarifications] = useState<any[]>([])
+  const [editingTcCell, setEditingTcCell] = useState<{ id: string; field: "category" | "steps" | "expected_result" | "priority" } | null>(null)
+  const [editingTcValue, setEditingTcValue] = useState("")
+
+  // ── Handlers: requirements inline editing ────────────────────────────────
+
+  const handleTcDirectCommit = async (id: string, field: "category" | "steps" | "expected_result" | "priority", value: string) => {
+    setTestCases(prev => prev.map(tc => tc.id === id ? { ...tc, [field]: value } : tc))
+    await supabase.from("test_cases").update({ [field]: value }).eq("id", id)
+  }
+
+  const handleTcEditStart = (id: string, field: "category" | "steps" | "expected_result" | "priority", currentValue: string) => {
+    setEditingTcCell({ id, field })
+    setEditingTcValue(currentValue)
+  }
+
+  const handleTcEditCommit = async () => {
+    if (!editingTcCell) return
+    const { id, field } = editingTcCell
+    const value = editingTcValue
+    setEditingTcCell(null)
+    setTestCases(prev => prev.map(tc => tc.id === id ? { ...tc, [field]: value } : tc))
+    await supabase.from("test_cases").update({ [field]: value }).eq("id", id)
+  }
+
+  const handleEditStart = (id: string, field: "req_code" | "description", currentValue: string) => {
+    setEditingCell({ id, field })
+    setEditingValue(currentValue)
+  }
+
+  const handleEditCommit = async () => {
+    if (!editingCell) return
+    const { id, field } = editingCell
+    const value = editingValue
+    setEditingCell(null)
+    setRequirements(prev => prev.map(r => r.id === id ? { ...r, [field]: value } : r))
+    await supabase.from("requirements").update({ [field]: value }).eq("id", id)
+  }
+
+  const handleDelete = async (id: string) => {
+    if (!selectedProjectId) return
+    await supabase.from("requirements").delete().eq("id", id)
+    fetchRequirements(selectedProjectId)
+  }
+
+  // ── Data fetching ────────────────────────────────────────────────────────
+
+  const fetchRequirements = async (projectId: string) => {
+    const { data, error } = await supabase
+      .from("requirements")
+      .select("*")
+      .eq("project_id", projectId)
+      .order("req_code")
+
+    if (error) {
+      console.error("Erreur fetch requirements:", error)
+    } else {
+      setRequirements(data ?? [])
+    }
+  }
+
+  const fetchClarifications = async (projectId: string) => {
+    const { data } = await supabase
+      .from("clarifications")
+      .select("*")
+      .eq("project_id", projectId)
+      .order("element_reference")
+    setClarifications(data ?? [])
+  }
+
+  const fetchTestCases = async (projectId: string) => {
+    const { data, error } = await supabase
+      .from("test_cases")
+      .select("*, requirements(req_code)")
+      .eq("project_id", projectId)
+      .order("tc_code")
+
+    if (error) {
+      console.error("Erreur fetch test cases:", error)
+    } else {
+      setTestCases(data ?? [])
+    }
+  }
+
+  const handleGenerateTestCases = async () => {
+    if (!selectedProjectId) return
+    setTcLoading(true)
+    try {
+      const res = await fetch("/api/generate-test-cases", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId: selectedProjectId }),
+      })
+      if (res.ok) {
+        await fetchTestCases(selectedProjectId)
+        setActiveView("testcases")
+      } else {
+        const text = await res.text()
+        setError(`Erreur génération test cases ${res.status} : ${text}`)
+      }
+    } catch (err: any) {
+      setError(`Erreur réseau : ${err.message}`)
+    } finally {
+      setTcLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (!selectedProjectId) return
+    setActiveView("requirements")
+    setTestCases([])
+    setClarifications([])
+    fetchRequirements(selectedProjectId)
+    fetchTestCases(selectedProjectId)
+    fetchClarifications(selectedProjectId)
+  }, [selectedProjectId])
 
   const fetchProjects = async () => {
     setError("")
@@ -48,11 +172,9 @@ export default function Dashboard() {
     router.push("/login")
   }
 
-    
-
-    const handleGenerateRequirements = async () => {
+  const handleGenerateRequirements = async () => {
     setError("")
-    
+
     if (specInput.trim() === "") {
       setError("La spécification est obligatoire")
       return
@@ -73,6 +195,9 @@ export default function Dashboard() {
         setRequirements(data.requirements || [])
         setSpecInput("")
         await fetchProjects()
+        if (data.project?.id) {
+          setSelectedProjectId(data.project.id)
+        }
       } else {
         const text = await res.text()
         setError(`Erreur ${res.status} : ${text}`)
@@ -84,66 +209,71 @@ export default function Dashboard() {
     }
   }
 
-    return (
-    <div style={{ padding: 20 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-        <h1>Dashboard</h1>
-        <button onClick={handleLogout}>Logout</button>
-      </div>
+  // ── Render ───────────────────────────────────────────────────────────────
 
-      {/* Container principal avec 2 colonnes */}
-      <div style={{ display: "flex", gap: 20 }}>
-        {/* Colonne gauche - Sidebar */}
-        <div style={{ width: 250, flexShrink: 0 }}>
-          <h2>Mes projets</h2>
+  const selectedProject = projects.find(p => p.id === selectedProjectId)
 
-          {loading && <p>Chargement…</p>}
-          {!loading && error && <p style={{ color: "red" }}>Erreur : {error}</p>}
-          {!loading && !error && projects.length === 0 && <p>Aucun projet pour le moment.</p>}
+  return (
+    <div className="flex h-screen overflow-hidden bg-background">
+      <Sidebar
+        projects={projects}
+        selectedId={selectedProjectId}
+        loading={loading}
+        onSelect={setSelectedProjectId}
+        onLogout={handleLogout}
+        onLogoClick={() => setSelectedProjectId(null)}
+      />
 
-          {!loading && !error && projects.length > 0 && (
-            <ul>
-              {projects.map((project) => (
-                <li key={project.id}>
-                  <Link href={`/project/${project.id}`}>
-                    <strong>{project.title}</strong>
-                  </Link>
-                  {project.created_at ? ` — ${new Date(project.created_at).toLocaleString("fr-FR")}` : ""}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-
-        {/* Colonne droite - Workspace */}
-        <div style={{ flex: 1 }}>
-          <div>
-            <textarea
-              value={specInput}
-              onChange={(e) => setSpecInput(e.target.value)}
-              placeholder="Collez votre spécification ici..."
-              style={{ width: "100%", minHeight: 100, padding: 8 }}
-            />
-            <button onClick={handleGenerateRequirements} disabled={aiLoading} style={{ marginTop: 10 }}>
-              Générer les requirements
-            </button>
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Top header */}
+        <header className="h-14 flex items-center justify-between px-8 border-b bg-background shrink-0">
+          <span className="text-sm font-medium text-foreground">
+            {selectedProject?.title ?? "Dashboard"}
+          </span>
+          <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+            <User className="h-4 w-4 text-muted-foreground" />
           </div>
+        </header>
 
-          {aiLoading && <p style={{ marginTop: 10 }}>Génération…</p>}
-
-          {!aiLoading && requirements.length > 0 && (
-            <div style={{ marginTop: 20 }}>
-              <h3>Requirements générés</h3>
-              <ul>
-                {requirements.map((req: any, idx: number) => (
-                  <li key={idx}>
-                    <strong>{req.req_code}</strong> : {req.description}
-                  </li>
-                ))}
-              </ul>
+        {/* Scrollable workspace */}
+        <main className="flex-1 overflow-y-auto px-8 py-6">
+          {error && (
+            <div className="mb-5 rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+              {error}
             </div>
           )}
-        </div>
+
+          {!selectedProjectId ? (
+            <WorkspaceEmpty
+              specInput={specInput}
+              onSpecChange={setSpecInput}
+              onGenerate={handleGenerateRequirements}
+              loading={aiLoading}
+            />
+          ) : (
+            <WorkspaceProject
+              activeView={activeView}
+              onViewChange={setActiveView}
+              requirements={requirements}
+              editingReqCell={editingCell}
+              editingReqValue={editingValue}
+              onReqEditStart={handleEditStart}
+              onReqEditChange={setEditingValue}
+              onReqEditCommit={handleEditCommit}
+              onReqDelete={handleDelete}
+              testCases={testCases}
+              editingTcCell={editingTcCell}
+              editingTcValue={editingTcValue}
+              onTcEditStart={handleTcEditStart}
+              onTcEditChange={setEditingTcValue}
+              onTcEditCommit={handleTcEditCommit}
+              tcLoading={tcLoading}
+              onGenerateTestCases={handleGenerateTestCases}
+              clarifications={clarifications}
+              onTcDirectCommit={handleTcDirectCommit}
+            />
+          )}
+        </main>
       </div>
     </div>
   )

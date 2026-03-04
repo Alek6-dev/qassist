@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+import { parseAIJson } from '@/lib/ai/parseAIJson'
 export const runtime = 'nodejs'
 
 async function insertRequirements(
@@ -95,14 +96,22 @@ const anthropicResponse = await fetch("https://api.anthropic.com/v1/messages", {
   },
   body: JSON.stringify({
     model: "claude-3-haiku-20240307",
-    max_tokens: 400,
+    max_tokens: 2000,
     messages: [
-      { role: "user", content: `Génère des exigences fonctionnelles en français.
-      Retourne UNIQUEMENT un JSON valide.
-      N'ajoute aucun texte avant ou après le JSON.
-      {"requirements":[{"id":"REQ-001","description":"..."}]}
-        Specification:
-        ${specification}` }
+      { role: "user", content: `Tu es un analyste fonctionnel. Génère les exigences fonctionnelles en français à partir de la spécification ci-dessous.
+
+FORMAT DE SORTIE — JSON STRICT, aucun texte avant ou après, aucun markdown :
+{"requirements":[{"id":"REQ-001","description":"Une phrase claire décrivant l'exigence."},{"id":"REQ-002","description":"..."}]}
+
+RÈGLES ABSOLUES :
+- Le JSON doit contenir UNIQUEMENT la clé "requirements" contenant un tableau d'objets.
+- Chaque objet doit avoir EXACTEMENT deux champs : "id" (string, format REQ-001, REQ-002…) et "description" (string, non vide).
+- N'utilise JAMAIS d'autres noms de champs (pas "req_code", pas "title", pas "name").
+- Chaque "description" est une phrase unique, claire et testable.
+- Aucune clé supplémentaire, aucun commentaire, aucun texte hors du JSON.
+
+Spécification :
+${specification}` }
     ]
   })
 })
@@ -137,55 +146,12 @@ console.log("AI Response status:", anthropicResponse.status)
       )
     }
 
-    // Extraction robuste du JSON    
-    function extractJSON(raw: string): string | null {
-      // Retirer les fences markdown
-      const cleaned = raw.replace(/^```json\s*/i, '').replace(/```\s*$/, '')
-      
-      // Trouver le premier { ou [
-      const startChar = cleaned.search(/[{\[]/);
-      if (startChar === -1) return null
-      
-      const openChar = cleaned[startChar]
-      const closeChar = openChar === '{' ? '}' : ']'
-      
-      let depth = 0
-      let endChar = -1
-      
-      for (let i = startChar; i < cleaned.length; i++) {
-        if (cleaned[i] === openChar) {
-          depth++
-        } else if (cleaned[i] === closeChar) {
-          depth--
-          if (depth === 0) {
-            endChar = i
-            break
-          }
-        }
-      }
-      
-      if (endChar === -1) return null
-      
-      return cleaned.slice(startChar, endChar + 1)
-    }
-
-    const jsonStr = extractJSON(text)
-    if (!jsonStr) {
-      return NextResponse.json(
-        { error: 'AI output does not contain valid JSON structure' },
-        { status: 422 }
-      )
-    }
-
-    // Parsing JSON
+    // Parse AI output (tolerant: cleans + retries via AI repair if needed)
     let parsed: any
     try {
-      parsed = JSON.parse(jsonStr)
-        } catch {
-      return NextResponse.json(
-        { error: 'AI output is not valid JSON' },
-        { status: 422 }
-      )
+      parsed = await parseAIJson(text, (process.env.ANTHROPIC_API_KEY || '').trim())
+    } catch (err: any) {
+      return NextResponse.json({ error: err.message }, { status: 422 })
     }
 
     // Validation de la structure
@@ -243,14 +209,30 @@ console.log("AI Response status:", anthropicResponse.status)
         },
         body: JSON.stringify({
           model: "claude-3-haiku-20240307",
-          max_tokens: 600,
+          max_tokens: 900,
           messages: [
             {
               role: "user",
-              content: `Génère des clarifications en français pour les exigences suivantes.
+              content: `Tu es un analyste QA senior. Analyse les exigences suivantes et identifie uniquement les ambiguïtés réelles qui empêcheraient un testeur d'écrire des cas de test.
+
+RÈGLES STRICTES :
+- N'inclus une clarification QUE si l'exigence contient : une information manquante, un comportement non défini, une règle métier floue, une valeur ou condition non spécifiée.
+- Formule chaque clarification comme une question sur l'information manquante, ou comme un constat d'ambiguïté précis.
+- NE JAMAIS reformuler ou paraphraser l'exigence. Ce n'est pas une clarification.
+- Si une exigence est claire et testable telle quelle, ne génère PAS de clarification pour elle.
+- Le tableau "clarifications" peut être vide si toutes les exigences sont claires.
+
+Exemples de BONNES clarifications :
+- "Quel indicateur visuel doit signaler la présence d'une nouvelle notification (badge, couleur, animation) ?"
+- "Quels types de notifications doivent rediriger l'utilisateur vers une autre page ?"
+- "Combien de temps les notifications doivent-elles être conservées dans le système ?"
+
+Exemples de MAUVAISES clarifications (à ne pas produire) :
+- "Cette exigence indique que l'utilisateur doit pouvoir cliquer sur l'icône de notification." ← simple reformulation
+
 Retourne UNIQUEMENT un JSON valide, sans texte avant ni après.
 Format strict :
-{"clarifications":[{"type":"requirement","element_reference":"REQ-001","explanation":"...","recommendation":"..."}]}
+{"clarifications":[{"type":"ambiguity","element_reference":"REQ-001","explanation":"...","recommendation":"..."}]}
 
 Exigences :
 ${requirementsList}`
@@ -264,17 +246,9 @@ ${requirementsList}`
         const clarText = clarRaw.content?.[0]?.text ?? ''
 
         if (clarText) {
-          const clarJsonStr = extractJSON(clarText)
-
-          if (clarJsonStr) {
-            let parsedClar: any
-            try {
-              parsedClar = JSON.parse(clarJsonStr)
-            } catch {
-              parsedClar = null
-            }
-
-            if (parsedClar && Array.isArray(parsedClar.clarifications)) {
+          try {
+            const parsedClar = await parseAIJson(clarText, clarApiKey)
+            if (Array.isArray(parsedClar.clarifications)) {
               const clarificationsToInsert = parsedClar.clarifications.map((c: any) => ({
                 project_id: project.id,
                 type: c.type,
@@ -282,9 +256,10 @@ ${requirementsList}`
                 explanation: c.explanation,
                 recommendation: c.recommendation,
               }))
-
               await supabase.from('clarifications').insert(clarificationsToInsert)
             }
+          } catch {
+            // non-fatal: clarifications are best-effort
           }
         }
       }
