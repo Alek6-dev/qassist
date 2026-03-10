@@ -7,6 +7,7 @@ import { Sidebar } from "@/components/dashboard/Sidebar"
 import { WorkspaceEmpty } from "@/components/dashboard/WorkspaceEmpty"
 import { WorkspaceProject } from "@/components/dashboard/WorkspaceProject"
 import { User } from "lucide-react"
+import { Button } from "@/components/ui/button"
 
 type Project = { id: string; title: string; created_at: string | null }
 
@@ -28,6 +29,8 @@ export default function Dashboard() {
   const [clarifications, setClarifications] = useState<any[]>([])
   const [editingTcCell, setEditingTcCell] = useState<{ id: string; field: "category" | "steps" | "expected_result" | "priority" } | null>(null)
   const [editingTcValue, setEditingTcValue] = useState("")
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
+  const [deletedReq, setDeletedReq] = useState<{ id: string; project_id: string; req_code: string; description: string } | null>(null)
 
   // ── Handlers: requirements inline editing ────────────────────────────────
 
@@ -64,11 +67,52 @@ export default function Dashboard() {
     await supabase.from("requirements").update({ [field]: value }).eq("id", id)
   }
 
+  const handleRenameProject = async (id: string, newTitle: string) => {
+    setProjects(prev => prev.map(p => p.id === id ? { ...p, title: newTitle } : p))
+    await supabase.from("projects").update({ title: newTitle }).eq("id", id)
+  }
+
+  const handleDeleteProject = async () => {
+    if (!deleteTargetId) return
+    const id = deleteTargetId
+    setDeleteTargetId(null)
+    setProjects(prev => prev.filter(p => p.id !== id))
+    if (selectedProjectId === id) setSelectedProjectId(null)
+    await supabase.from("projects").delete().eq("id", id)
+  }
+
+  const handleAddRequirement = async (req_code: string, description: string) => {
+    if (!selectedProjectId) return
+    await supabase.from("requirements").insert({ project_id: selectedProjectId, req_code, description })
+    await fetchRequirements(selectedProjectId)
+  }
+
   const handleDelete = async (id: string) => {
     if (!selectedProjectId) return
+    const req = requirements.find(r => r.id === id)
+    if (req) setDeletedReq({ id: req.id, project_id: req.project_id, req_code: req.req_code, description: req.description })
     await supabase.from("requirements").delete().eq("id", id)
     fetchRequirements(selectedProjectId)
   }
+
+  // ── Undo last requirement deletion (Ctrl+Z) ──────────────────────────────
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.key !== "z") return
+      const tag = (document.activeElement as HTMLElement)?.tagName
+      if (tag === "INPUT" || tag === "TEXTAREA") return
+      if (!deletedReq) return
+      e.preventDefault()
+      const req = deletedReq
+      setDeletedReq(null)
+      supabase.from("requirements")
+        .insert({ id: req.id, project_id: req.project_id, req_code: req.req_code, description: req.description })
+        .then(() => fetchRequirements(req.project_id))
+    }
+    document.addEventListener("keydown", handler)
+    return () => document.removeEventListener("keydown", handler)
+  }, [deletedReq])
 
   // ── Data fetching ────────────────────────────────────────────────────────
 
@@ -222,6 +266,8 @@ export default function Dashboard() {
         onSelect={setSelectedProjectId}
         onLogout={handleLogout}
         onLogoClick={() => setSelectedProjectId(null)}
+        onRename={handleRenameProject}
+        onDeleteRequest={setDeleteTargetId}
       />
 
       <div className="flex-1 flex flex-col overflow-hidden">
@@ -261,6 +307,8 @@ export default function Dashboard() {
               onReqEditChange={setEditingValue}
               onReqEditCommit={handleEditCommit}
               onReqDelete={handleDelete}
+              onReqAdd={handleAddRequirement}
+              hasTestCases={testCases.length > 0}
               testCases={testCases}
               editingTcCell={editingTcCell}
               editingTcValue={editingTcValue}
@@ -275,6 +323,24 @@ export default function Dashboard() {
           )}
         </main>
       </div>
+
+      {/* Delete confirmation modal */}
+      {deleteTargetId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setDeleteTargetId(null)} />
+          <div className="relative bg-background rounded-lg border shadow-lg p-6 w-80">
+            <p className="text-sm font-medium mb-4">Delete this project?</p>
+            <div className="flex gap-2 justify-end">
+              <Button variant="ghost" size="sm" onClick={() => setDeleteTargetId(null)}>
+                Cancel
+              </Button>
+              <Button variant="destructive" size="sm" onClick={handleDeleteProject}>
+                Delete
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

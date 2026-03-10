@@ -21,6 +21,8 @@ interface WorkspaceProjectProps {
   onReqEditChange: (v: string) => void
   onReqEditCommit: () => void
   onReqDelete: (id: string) => void
+  onReqAdd: (req_code: string, description: string) => Promise<void>
+  hasTestCases: boolean
   // test cases
   testCases: any[]
   editingTcCell: { id: string; field: TcField } | null
@@ -44,6 +46,8 @@ export function WorkspaceProject({
   onReqEditChange,
   onReqEditCommit,
   onReqDelete,
+  onReqAdd,
+  hasTestCases,
   testCases,
   editingTcCell,
   editingTcValue,
@@ -111,6 +115,8 @@ export function WorkspaceProject({
             onEditChange={onReqEditChange}
             onEditCommit={onReqEditCommit}
             onDelete={onReqDelete}
+            onAdd={onReqAdd}
+            hasTestCases={hasTestCases}
           />
           <ClarificationsTable clarifications={clarifications} />
         </>
@@ -119,6 +125,7 @@ export function WorkspaceProject({
       {activeView === "testcases" && (
         <TestCasesTable
           testCases={testCases}
+          requirements={requirements}
           editingCell={editingTcCell}
           editingValue={editingTcValue}
           onEditStart={onTcEditStart}

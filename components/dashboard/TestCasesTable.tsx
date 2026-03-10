@@ -19,6 +19,7 @@ type TcField = "category" | "steps" | "expected_result" | "priority"
 
 interface TestCasesTableProps {
   testCases: any[]
+  requirements: { id: string }[]
   editingCell: { id: string; field: TcField } | null
   editingValue: string
   onEditStart: (id: string, field: TcField, value: string) => void
@@ -45,6 +46,7 @@ function PriorityBadge({ priority }: { priority: string }) {
 
 export function TestCasesTable({
   testCases,
+  requirements,
   editingCell,
   editingValue,
   onEditStart,
@@ -64,15 +66,20 @@ export function TestCasesTable({
     )
   }
 
+  // Map requirement id → UI display label based on current position in requirements list
+  const reqLabelMap = new Map(
+    requirements.map((r, i) => [r.id, `REQ-${String(i + 1).padStart(3, "0")}`])
+  )
+
   // Group consecutive test cases by requirement
-  const groups: { reqCode: string; tcs: any[] }[] = []
+  const groups: { reqLabel: string; tcs: any[] }[] = []
   for (const tc of testCases) {
-    const reqCode = tc.requirements?.req_code ?? "—"
+    const reqLabel = reqLabelMap.get(tc.requirement_id) ?? tc.requirements?.req_code ?? "—"
     const last = groups[groups.length - 1]
-    if (last && last.reqCode === reqCode) {
+    if (last && last.reqLabel === reqLabel) {
       last.tcs.push(tc)
     } else {
-      groups.push({ reqCode, tcs: [tc] })
+      groups.push({ reqLabel, tcs: [tc] })
     }
   }
 
@@ -156,7 +163,7 @@ export function TestCasesTable({
                   rowSpan={group.tcs.length}
                   className="font-mono font-semibold text-xs align-top px-4 py-3 border-r bg-muted/30 text-muted-foreground whitespace-nowrap"
                 >
-                  {group.reqCode}
+                  {group.reqLabel}
                 </TableCell>
               )}
               <TableCell className="font-mono text-xs text-muted-foreground align-top px-4 py-3 whitespace-nowrap">

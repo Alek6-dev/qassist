@@ -1,5 +1,6 @@
 "use client"
 
+import { useState, useRef, useEffect } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import {
@@ -10,7 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { ClipboardList, Trash2 } from "lucide-react"
+import { ClipboardList, Plus, Trash2 } from "lucide-react"
 
 type ReqField = "req_code" | "description"
 
@@ -22,6 +23,8 @@ interface RequirementsTableProps {
   onEditChange: (v: string) => void
   onEditCommit: () => void
   onDelete: (id: string) => void
+  onAdd: (req_code: string, description: string) => Promise<void>
+  hasTestCases: boolean
 }
 
 export function RequirementsTable({
@@ -32,16 +35,34 @@ export function RequirementsTable({
   onEditChange,
   onEditCommit,
   onDelete,
+  onAdd,
+  hasTestCases,
 }: RequirementsTableProps) {
-  if (requirements.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 gap-3">
-        <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
-          <ClipboardList className="h-5 w-5 text-muted-foreground/40" />
-        </div>
-        <p className="text-sm text-muted-foreground">No requirements for this project.</p>
-      </div>
-    )
+  const [adding, setAdding] = useState(false)
+  const [newDescription, setNewDescription] = useState("")
+  const [pendingCode, setPendingCode] = useState("")
+  const newDescRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (adding) newDescRef.current?.focus()
+  }, [adding])
+
+  const startAdding = () => {
+    const nums = requirements
+      .map(r => parseInt(r.req_code?.replace(/[^0-9]/g, "") || "0"))
+      .filter(n => !isNaN(n))
+    const max = nums.length > 0 ? Math.max(...nums) : 0
+    setPendingCode(`REQ-${String(max + 1).padStart(3, "0")}`)
+    setNewDescription("")
+    setAdding(true)
+  }
+
+  const commitAdd = async () => {
+    if (!adding) return
+    const desc = newDescription.trim()
+    setAdding(false)
+    setNewDescription("")
+    if (desc) await onAdd(pendingCode, desc)
   }
 
   return (
@@ -58,26 +79,27 @@ export function RequirementsTable({
         </TableRow>
       </TableHeader>
       <TableBody>
-        {requirements.map((req) => (
+        {/* Empty state row */}
+        {requirements.length === 0 && !adding && (
+          <TableRow className="hover:bg-transparent">
+            <TableCell colSpan={3} className="py-14 text-center">
+              <div className="flex flex-col items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
+                  <ClipboardList className="h-5 w-5 text-muted-foreground/40" />
+                </div>
+                <p className="text-sm text-muted-foreground">No requirements for this project.</p>
+              </div>
+            </TableCell>
+          </TableRow>
+        )}
+
+        {/* Existing requirements */}
+        {requirements.map((req, index) => {
+          const displayCode = `REQ-${String(index + 1).padStart(3, "0")}`
+          return (
           <TableRow key={req.id} className="hover:bg-muted/30 transition-colors border-b last:border-0">
             <TableCell className="font-mono font-medium align-top px-4 py-3 text-sm">
-              {editingCell?.id === req.id && editingCell?.field === "req_code" ? (
-                <Input
-                  value={editingValue}
-                  onChange={(e) => onEditChange(e.target.value)}
-                  onBlur={onEditCommit}
-                  onKeyDown={(e) => e.key === "Enter" && onEditCommit()}
-                  autoFocus
-                  className="h-7 text-sm font-mono"
-                />
-              ) : (
-                <span
-                  onClick={() => onEditStart(req.id, "req_code", req.req_code)}
-                  className="cursor-text"
-                >
-                  {req.req_code}
-                </span>
-              )}
+              <span>{displayCode}</span>
             </TableCell>
 
             <TableCell className="align-top px-4 py-3 text-sm">
@@ -102,17 +124,57 @@ export function RequirementsTable({
             </TableCell>
 
             <TableCell className="align-top text-right px-4 py-3">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 text-muted-foreground/40 hover:text-destructive hover:bg-destructive/5"
-                onClick={() => onDelete(req.id)}
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </Button>
+              {!hasTestCases && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-muted-foreground/40 hover:text-destructive hover:bg-destructive/5"
+                  onClick={() => onDelete(req.id)}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              )}
             </TableCell>
           </TableRow>
-        ))}
+          )
+        })}
+
+        {/* New requirement row (inline) */}
+        {adding && (
+          <TableRow className="bg-muted/20">
+            <TableCell className="font-mono font-medium px-4 py-3 text-sm text-muted-foreground">
+              {pendingCode}
+            </TableCell>
+            <TableCell className="px-4 py-3">
+              <input
+                ref={newDescRef}
+                value={newDescription}
+                onChange={e => setNewDescription(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === "Enter" && !e.shiftKey) commitAdd()
+                  if (e.key === "Escape") { setAdding(false); setNewDescription("") }
+                }}
+                onBlur={commitAdd}
+                placeholder="Description…"
+                className="w-full text-sm bg-transparent outline-none ring-1 ring-ring rounded px-2 py-1"
+              />
+            </TableCell>
+            <TableCell />
+          </TableRow>
+        )}
+
+        {/* Add requirement trigger row */}
+        <TableRow
+          className="hover:bg-muted/30 cursor-pointer border-0"
+          onClick={startAdding}
+        >
+          <TableCell colSpan={3} className="px-4 py-2.5">
+            <span className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
+              <Plus className="h-3.5 w-3.5" />
+              Add requirement
+            </span>
+          </TableCell>
+        </TableRow>
       </TableBody>
     </Table>
   )

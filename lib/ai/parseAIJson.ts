@@ -16,14 +16,31 @@ function stripFences(raw: string): string {
 }
 
 /**
- * Brace-balanced extraction — correctly skips { and } inside JSON strings,
- * so trailing text like "See {spec}." after the JSON does not over-capture.
+ * Bracket/brace-balanced extraction — handles both objects { } and arrays [ ].
+ * Correctly skips delimiters inside JSON strings.
  */
 function extractJSON(raw: string): string | null {
   const cleaned = stripFences(raw)
 
-  const startIdx = cleaned.indexOf("{")
-  if (startIdx === -1) return null
+  const objIdx = cleaned.indexOf("{")
+  const arrIdx = cleaned.indexOf("[")
+
+  // Pick the delimiter that appears first (array or object)
+  let startIdx: number
+  let openChar: string
+  let closeChar: string
+
+  if (arrIdx !== -1 && (objIdx === -1 || arrIdx < objIdx)) {
+    startIdx = arrIdx
+    openChar = "["
+    closeChar = "]"
+  } else if (objIdx !== -1) {
+    startIdx = objIdx
+    openChar = "{"
+    closeChar = "}"
+  } else {
+    return null
+  }
 
   let depth = 0
   let inString = false
@@ -37,8 +54,8 @@ function extractJSON(raw: string): string | null {
     if (ch === '"') { inString = !inString; continue }
     if (inString) continue
 
-    if (ch === "{") depth++
-    else if (ch === "}") {
+    if (ch === openChar) depth++
+    else if (ch === closeChar) {
       depth--
       if (depth === 0) return cleaned.slice(startIdx, i + 1)
     }

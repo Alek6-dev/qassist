@@ -209,32 +209,57 @@ console.log("AI Response status:", anthropicResponse.status)
         },
         body: JSON.stringify({
           model: "claude-3-haiku-20240307",
-          max_tokens: 900,
+          max_tokens: 4096,
           messages: [
             {
               role: "user",
-              content: `Tu es un analyste QA senior. Analyse les exigences suivantes et identifie uniquement les ambiguïtés réelles qui empêcheraient un testeur d'écrire des cas de test.
+              content: `Réponds UNIQUEMENT avec un tableau JSON valide. Aucun texte avant ni après. Aucune explication. Commence directement par "[".
 
-RÈGLES STRICTES :
-- N'inclus une clarification QUE si l'exigence contient : une information manquante, un comportement non défini, une règle métier floue, une valeur ou condition non spécifiée.
-- Formule chaque clarification comme une question sur l'information manquante, ou comme un constat d'ambiguïté précis.
-- NE JAMAIS reformuler ou paraphraser l'exigence. Ce n'est pas une clarification.
-- Si une exigence est claire et testable telle quelle, ne génère PAS de clarification pour elle.
-- Le tableau "clarifications" peut être vide si toutes les exigences sont claires.
+Tu es un analyste QA senior spécialisé dans la revue de spécifications fonctionnelles.
 
-Exemples de BONNES clarifications :
-- "Quel indicateur visuel doit signaler la présence d'une nouvelle notification (badge, couleur, animation) ?"
-- "Quels types de notifications doivent rediriger l'utilisateur vers une autre page ?"
-- "Combien de temps les notifications doivent-elles être conservées dans le système ?"
+Ta mission est d'identifier toutes les ambiguïtés, imprécisions ou informations manquantes qui empêcheraient un testeur d'écrire des cas de test précis et reproductibles.
 
-Exemples de MAUVAISES clarifications (à ne pas produire) :
-- "Cette exigence indique que l'utilisateur doit pouvoir cliquer sur l'icône de notification." ← simple reformulation
+IMPORTANT :
+Une spécification imparfaite doit produire des clarifications.
+Si un requirement contient un terme vague ou subjectif, il doit être signalé.
 
-Retourne UNIQUEMENT un JSON valide, sans texte avant ni après.
-Format strict :
-{"clarifications":[{"type":"ambiguity","element_reference":"REQ-001","explanation":"...","recommendation":"..."}]}
+Considère comme ambigu tout requirement contenant :
 
-Exigences :
+1. TERMES SUBJECTIFS OU NON MESURABLES
+performant, rapide, simple, facile, intuitif, important, approprié, correct, nécessaire, adéquat, suffisant, acceptable, efficace, ergonomique, convivial, sécurisé
+
+2. PORTÉE NON DÉFINIE
+certaines actions, certains utilisateurs, certaines informations, dans certains cas, selon le contexte
+
+3. CONDITIONS MANQUANTES
+si nécessaire, lorsqu'un événement se produit, si cela est autorisé, dans les cas habituels
+
+4. RÈGLES MÉTIER NON DÉFINIES
+fonctionnalités concernées, accès approprié, permissions adéquates
+
+5. CRITÈRES NON MESURABLES
+système performant, accès rapide, chargement fluide, interface simple
+
+RÈGLES :
+
+- Analyse chaque requirement individuellement
+- Une requirement peut produire plusieurs ambiguïtés
+- Il vaut mieux signaler trop d'ambiguïtés que pas assez
+- N'ignore jamais un terme vague
+- Explique toujours pourquoi c'est ambigu
+
+Format de sortie :
+
+[
+  {
+    "reference": "REQ-XXX",
+    "type": "ambiguity",
+    "ambiguity": "explication précise du problème",
+    "recommendation": "information qui doit être précisée"
+  }
+]
+
+Exigences à analyser :
 ${requirementsList}`
             }
           ]
@@ -244,22 +269,38 @@ ${requirementsList}`
       if (clarResponse.ok) {
         const clarRaw = await clarResponse.json()
         const clarText = clarRaw.content?.[0]?.text ?? ''
+        console.log("CLAUDE CLARIFICATIONS RAW:")
+        console.log(clarText)
 
         if (clarText) {
           try {
             const parsedClar = await parseAIJson(clarText, clarApiKey)
-            if (Array.isArray(parsedClar.clarifications)) {
-              const clarificationsToInsert = parsedClar.clarifications.map((c: any) => ({
+            console.log("PARSED CLARIFICATIONS:")
+            console.log(parsedClar)
+            const clarArray = Array.isArray(parsedClar)
+              ? parsedClar
+              : Array.isArray(parsedClar.clarifications)
+                ? parsedClar.clarifications
+                : [parsedClar]
+            console.log("CLAR ARRAY LENGTH:", clarArray?.length, "IS ARRAY:", Array.isArray(clarArray))
+            if (Array.isArray(clarArray) && clarArray.length > 0) {
+              const clarificationsToInsert = clarArray.map((c: any) => ({
                 project_id: project.id,
-                type: c.type,
-                element_reference: c.element_reference,
-                explanation: c.explanation,
+                type: c.type ?? 'ambiguity',
+                element_reference: c.reference ?? c.element_reference,
+                explanation: c.ambiguity ?? c.explanation,
                 recommendation: c.recommendation,
               }))
-              await supabase.from('clarifications').insert(clarificationsToInsert)
+              console.log("INSERTING CLARIFICATIONS:", JSON.stringify(clarificationsToInsert))
+              const { error: clarInsertError } = await supabase.from('clarifications').insert(clarificationsToInsert)
+              if (clarInsertError) {
+                console.error("CLARIFICATIONS INSERT ERROR:", clarInsertError)
+              } else {
+                console.log("CLARIFICATIONS INSERTED OK")
+              }
             }
-          } catch {
-            // non-fatal: clarifications are best-effort
+          } catch (err) {
+            console.error("CLARIFICATIONS CATCH ERROR:", err)
           }
         }
       }
