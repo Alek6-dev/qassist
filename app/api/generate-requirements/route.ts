@@ -98,16 +98,31 @@ const anthropicResponse = await fetch("https://api.anthropic.com/v1/messages", {
     model: "claude-3-haiku-20240307",
     max_tokens: 2000,
     messages: [
-      { role: "user", content: `Tu es un analyste fonctionnel. Génère les exigences fonctionnelles en français à partir de la spécification ci-dessous.
+      { role: "user", content: `Tu es un analyste fonctionnel QA senior. Génère les exigences fonctionnelles en français à partir de la spécification ci-dessous.
 
 FORMAT DE SORTIE — JSON STRICT, aucun texte avant ou après, aucun markdown :
-{"requirements":[{"id":"REQ-001","description":"Une phrase claire décrivant l'exigence."},{"id":"REQ-002","description":"..."}]}
+{"requirements":[{"id":"REQ-001","description":"Une phrase courte et atomique."},{"id":"REQ-002","description":"..."}]}
+
+RÈGLE FONDAMENTALE — ATOMICITÉ (OBLIGATOIRE) :
+1 règle fonctionnelle = 1 exigence. C'est la règle la plus importante.
+
+- Si une phrase source décrit plusieurs comportements, tu DOIS la diviser en autant d'exigences séparées.
+- Chaque exigence doit pouvoir être testée de façon totalement indépendante des autres.
+- Une exigence ne doit JAMAIS contenir les mots "et", "ainsi que", "également", "de plus" pour relier deux règles distinctes.
+
+EXEMPLE DE MAUVAISE EXIGENCE (INTERDIT) :
+"Le système doit permettre la création d'un compte, valider que l'email est unique et afficher un message de confirmation."
+
+EXEMPLE CORRECT (3 exigences atomiques) :
+REQ-001 → "Le système doit permettre à un utilisateur de créer un compte."
+REQ-002 → "Le système doit s'assurer que l'adresse email est unique."
+REQ-003 → "Le système doit afficher un message de confirmation après la création du compte."
 
 RÈGLES ABSOLUES :
 - Le JSON doit contenir UNIQUEMENT la clé "requirements" contenant un tableau d'objets.
 - Chaque objet doit avoir EXACTEMENT deux champs : "id" (string, format REQ-001, REQ-002…) et "description" (string, non vide).
 - N'utilise JAMAIS d'autres noms de champs (pas "req_code", pas "title", pas "name").
-- Chaque "description" est une phrase unique, claire et testable.
+- Chaque "description" est une phrase courte, atomique et testable individuellement.
 - Aucune clé supplémentaire, aucun commentaire, aucun texte hors du JSON.
 
 Spécification :

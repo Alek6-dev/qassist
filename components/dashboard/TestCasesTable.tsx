@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Select as SelectPrimitive } from "radix-ui"
@@ -16,6 +17,8 @@ import { cn } from "@/lib/utils"
 import { FlaskConical } from "lucide-react"
 
 type TcField = "category" | "steps" | "expected_result" | "priority"
+type SortColumn = "requirement" | "tc" | "category" | "priority"
+type SortDirection = "asc" | "desc"
 
 interface TestCasesTableProps {
   testCases: any[]
@@ -27,6 +30,8 @@ interface TestCasesTableProps {
   onEditCommit: () => void
   onDirectCommit?: (id: string, field: TcField, value: string) => void
 }
+
+// ── Priority badge ─────────────────────────────────────────────────────────
 
 function PriorityBadge({ priority }: { priority: string }) {
   const label = priority ? priority.charAt(0).toUpperCase() + priority.slice(1) : "—"
@@ -44,6 +49,56 @@ function PriorityBadge({ priority }: { priority: string }) {
   )
 }
 
+// ── Sort icon ──────────────────────────────────────────────────────────────
+
+function SortIcon({ active, direction }: { active: boolean; direction: SortDirection }) {
+  return (
+    <span
+      className={cn("inline ml-1 text-[10px] leading-none", {
+        "text-foreground": active,
+        "text-muted-foreground/30": !active,
+      })}
+    >
+      {active ? (direction === "asc" ? "▲" : "▼") : "▲"}
+    </span>
+  )
+}
+
+// ── Sort logic ─────────────────────────────────────────────────────────────
+
+const PRIORITY_ORDER: Record<string, number> = { high: 0, medium: 1, low: 2 }
+
+function sortedTestCases(
+  testCases: any[],
+  reqLabelMap: Map<string, string>,
+  column: SortColumn,
+  direction: SortDirection
+): any[] {
+  const dir = direction === "asc" ? 1 : -1
+
+  return [...testCases].sort((a, b) => {
+    if (column === "requirement") {
+      const la = reqLabelMap.get(a.requirement_id) ?? ""
+      const lb = reqLabelMap.get(b.requirement_id) ?? ""
+      return la.localeCompare(lb) * dir
+    }
+    if (column === "tc") {
+      return (a.tc_code ?? "").localeCompare(b.tc_code ?? "") * dir
+    }
+    if (column === "category") {
+      return (a.category ?? "").localeCompare(b.category ?? "") * dir
+    }
+    if (column === "priority") {
+      const pa = PRIORITY_ORDER[a.priority] ?? 99
+      const pb = PRIORITY_ORDER[b.priority] ?? 99
+      return (pa - pb) * dir
+    }
+    return 0
+  })
+}
+
+// ── Main component ─────────────────────────────────────────────────────────
+
 export function TestCasesTable({
   testCases,
   requirements,
@@ -54,6 +109,9 @@ export function TestCasesTable({
   onEditCommit,
   onDirectCommit,
 }: TestCasesTableProps) {
+  const [sortCol, setSortCol] = useState<SortColumn>("requirement")
+  const [sortDir, setSortDir] = useState<SortDirection>("asc")
+
   if (testCases.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-3">
@@ -66,14 +124,26 @@ export function TestCasesTable({
     )
   }
 
-  // Map requirement id → UI display label based on current position in requirements list
+  // Map requirement id → UI display label (index-based, mirrors RequirementsTable)
   const reqLabelMap = new Map(
     requirements.map((r, i) => [r.id, `REQ-${String(i + 1).padStart(3, "0")}`])
   )
 
-  // Group consecutive test cases by requirement
+  const handleSort = (col: SortColumn) => {
+    if (col === sortCol) {
+      setSortDir(d => (d === "asc" ? "desc" : "asc"))
+    } else {
+      setSortCol(col)
+      setSortDir("asc")
+    }
+  }
+
+  // Apply sorting before grouping
+  const sorted = sortedTestCases(testCases, reqLabelMap, sortCol, sortDir)
+
+  // Group consecutive TCs by requirement label
   const groups: { reqLabel: string; tcs: any[] }[] = []
-  for (const tc of testCases) {
+  for (const tc of sorted) {
     const reqLabel = reqLabelMap.get(tc.requirement_id) ?? tc.requirements?.req_code ?? "—"
     const last = groups[groups.length - 1]
     if (last && last.reqLabel === reqLabel) {
@@ -97,10 +167,7 @@ export function TestCasesTable({
       )
     }
     return (
-      <span
-        onClick={() => onEditStart(tc.id, field, value)}
-        className="cursor-text"
-      >
+      <span onClick={() => onEditStart(tc.id, field, value)} className="cursor-text">
         {value}
       </span>
     )
@@ -121,37 +188,39 @@ export function TestCasesTable({
       )
     }
     return (
-      <span
-        onClick={() => onEditStart(tc.id, field, value)}
-        className="cursor-text whitespace-pre-wrap"
-      >
+      <span onClick={() => onEditStart(tc.id, field, value)} className="cursor-text whitespace-pre-wrap">
         {value}
       </span>
     )
   }
 
+  const sortableHead = (col: SortColumn, label: string, className?: string) => (
+    <TableHead
+      className={cn("px-4 py-3 text-xs uppercase tracking-wide cursor-pointer select-none hover:text-foreground transition-colors", className, {
+        "font-bold text-foreground": sortCol === col,
+        "font-semibold text-muted-foreground": sortCol !== col,
+      })}
+      onClick={() => handleSort(col)}
+    >
+      {label}
+      <SortIcon active={sortCol === col} direction={sortDir} />
+    </TableHead>
+  )
+
   return (
     <Table>
       <TableHeader>
         <TableRow className="hover:bg-transparent border-b">
-          <TableHead className="w-32 px-4 py-3 text-xs font-semibold uppercase tracking-wide">
-            Requirement
-          </TableHead>
-          <TableHead className="w-24 px-4 py-3 text-xs font-semibold uppercase tracking-wide">
-            TC
-          </TableHead>
-          <TableHead className="w-28 px-4 py-3 text-xs font-semibold uppercase tracking-wide">
-            Category
-          </TableHead>
+          {sortableHead("requirement", "Requirement", "w-32")}
+          {sortableHead("tc", "TC", "w-24")}
+          {sortableHead("category", "Category", "w-28")}
           <TableHead className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">
             Steps
           </TableHead>
           <TableHead className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">
             Expected result
           </TableHead>
-          <TableHead className="w-24 px-4 py-3 text-xs font-semibold uppercase tracking-wide">
-            Priority
-          </TableHead>
+          {sortableHead("priority", "Priority", "w-24")}
         </TableRow>
       </TableHeader>
       <TableBody>
