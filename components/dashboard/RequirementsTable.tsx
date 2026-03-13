@@ -148,7 +148,7 @@ export function RequirementsTable({
       <TableHeader>
         <TableRow className="hover:bg-transparent border-b">
           <TableHead className="w-36 px-4 py-3 text-xs font-semibold uppercase tracking-wide">
-            Requirement
+            Exigence
           </TableHead>
           <TableHead className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">
             Description
@@ -168,7 +168,7 @@ export function RequirementsTable({
                 <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
                   <ClipboardList className="h-5 w-5 text-muted-foreground/40" />
                 </div>
-                <p className="text-sm text-muted-foreground">No requirements for this project.</p>
+                <p className="text-sm text-muted-foreground">Aucune exigence pour ce projet.</p>
               </div>
             </TableCell>
           </TableRow>
@@ -258,7 +258,7 @@ export function RequirementsTable({
           <TableCell colSpan={4} className="px-4 py-2.5">
             <span className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
               <Plus className="h-3.5 w-3.5" />
-              Add requirement
+              Ajouter une exigence
             </span>
           </TableCell>
         </TableRow>

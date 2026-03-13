@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { Sparkles, X } from "lucide-react"
+import { Download, Sparkles, X } from "lucide-react"
 import { RequirementsTable } from "./RequirementsTable"
 import { TestCasesTable } from "./TestCasesTable"
 import { ClarificationsTable } from "./ClarificationsTable"
@@ -36,6 +36,7 @@ interface WorkspaceProjectProps {
   onGenerateTestCases: () => void
   clarifications: any[]
   onTcDirectCommit?: (id: string, field: "category" | "steps" | "expected_result" | "priority", value: string) => void
+  projectName?: string
 }
 
 // ── Coverage summary modal ─────────────────────────────────────────────────
@@ -142,6 +143,7 @@ export function WorkspaceProject({
   onGenerateTestCases,
   clarifications,
   onTcDirectCommit,
+  projectName = "",
 }: WorkspaceProjectProps) {
   // ── Notification badge ─────────────────────────────────────────────────
   const [reqBadge, setReqBadge] = useState(false)
@@ -158,6 +160,28 @@ export function WorkspaceProject({
   const handleViewRequirements = () => {
     setReqBadge(false)
     onViewChange("requirements")
+  }
+
+  // ── CSV export ─────────────────────────────────────────────────────────
+  const handleExportCsv = () => {
+    const escape = (v: string) => `"${(v ?? "").replace(/"/g, '""')}"`
+    const reqMap = new Map(requirements.map(r => [r.id, r]))
+    const headers = ["Test Case ID", "Requirement ID", "Requirement Description", "Category", "Test Steps", "Expected Result", "Priority"]
+    const rows = testCases.map(tc => {
+      const req = reqMap.get(tc.requirement_id)
+      return [tc.tc_code, req?.req_code, req?.description, tc.category, tc.steps, tc.expected_result, tc.priority]
+        .map(v => escape(String(v ?? "")))
+        .join(",")
+    })
+    const csv = [headers.map(escape).join(","), ...rows].join("\r\n")
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    const slug = projectName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
+    a.download = slug ? `qassist-test-cases-${slug}.csv` : "qassist-test-cases.csv"
+    a.click()
+    URL.revokeObjectURL(url)
   }
 
   // ── Coverage summary modal ─────────────────────────────────────────────
@@ -179,7 +203,7 @@ export function WorkspaceProject({
                 : "border-transparent text-muted-foreground hover:text-foreground"
             )}
           >
-            Requirements
+            Exigences
             {reqBadge && (
               <span className="absolute top-2.5 right-1.5 w-2 h-2 rounded-full bg-red-500" />
             )}
@@ -195,7 +219,7 @@ export function WorkspaceProject({
                 : "border-transparent text-muted-foreground hover:text-foreground"
             )}
           >
-            Test Cases
+            Cas de test
           </button>
 
           {/* Coverage summary link */}
@@ -219,7 +243,21 @@ export function WorkspaceProject({
               className="h-8 gap-1.5 text-xs"
             >
               <Sparkles className="h-3.5 w-3.5" />
-              {tcLoading ? "Generating…" : "Generate Test Cases"}
+              {tcLoading ? "Génération…" : "Générer les cas de test"}
+            </Button>
+          </div>
+        )}
+
+        {activeView === "testcases" && testCases.length > 0 && (
+          <div className="pr-4">
+            <Button
+              onClick={handleExportCsv}
+              variant="outline"
+              size="sm"
+              className="h-8 gap-1.5 text-xs"
+            >
+              <Download className="h-3.5 w-3.5" />
+              Export CSV
             </Button>
           </div>
         )}

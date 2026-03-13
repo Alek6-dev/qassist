@@ -60,6 +60,10 @@ export function WorkspaceEmpty({ specInput, onSpecChange, onGenerate, loading }:
       }
 
       const { text } = await res.json()
+      if (!text || !text.trim()) {
+        setUploadError("Aucun texte exploitable n'a été trouvé dans ce PDF.\nMerci de coller votre spécification manuellement.")
+        return
+      }
       setPdfState({ fileName: file.name, charCount: text.length, previewText: text })
       // Set extracted text as the specInput so the existing generate flow works unchanged
       onSpecChange(text)
@@ -148,9 +152,9 @@ export function WorkspaceEmpty({ specInput, onSpecChange, onGenerate, loading }:
     <div className="flex flex-col items-center pt-10">
       <div className="w-full max-w-2xl space-y-5">
         <div>
-          <h2 className="text-lg font-semibold tracking-tight">Create a new project</h2>
+          <h2 className="text-lg font-semibold tracking-tight">Créer un nouveau projet</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Paste a functional specification to generate structured requirements automatically.
+            Collez une spécification fonctionnelle pour générer des exigences structurées automatiquement.
           </p>
         </div>
 
@@ -237,7 +241,7 @@ export function WorkspaceEmpty({ specInput, onSpecChange, onGenerate, loading }:
           disabled={loading || specInput.trim() === ""}
           className="w-full"
         >
-          {loading ? "Generating requirements…" : "Generate Requirements"}
+          {loading ? "Génération des exigences…" : "Générer les exigences"}
         </Button>
       </div>
 

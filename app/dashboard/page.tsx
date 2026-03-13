@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import { Sidebar } from "@/components/dashboard/Sidebar"
@@ -31,6 +31,11 @@ export default function Dashboard() {
   const [editingTcValue, setEditingTcValue] = useState("")
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
   const [deletedReq, setDeletedReq] = useState<{ id: string; project_id: string; req_code: string; description: string } | null>(null)
+  const [specQualityWarning, setSpecQualityWarning] = useState<"BAD" | "MEDIUM" | null>(null)
+  const generatingRef = useRef(false)
+  const loadingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const MAX_SPEC_CHARS = 50_000
+  const [loadingLabel, setLoadingLabel] = useState<string | null>(null)
 
   // ── Handlers: requirements inline editing ────────────────────────────────
 
@@ -155,6 +160,7 @@ export default function Dashboard() {
 
   const handleGenerateTestCases = async () => {
     if (!selectedProjectId) return
+    setLoadingLabel("Génération des cas de test…")
     setTcLoading(true)
     try {
       const res = await fetch("/api/generate-test-cases", {
@@ -172,6 +178,7 @@ export default function Dashboard() {
     } catch (err: any) {
       setError(`Erreur réseau : ${err.message}`)
     } finally {
+      setLoadingLabel(null)
       setTcLoading(false)
     }
   }
@@ -217,6 +224,7 @@ export default function Dashboard() {
   }
 
   const handleGenerateRequirements = async () => {
+    if (generatingRef.current) return
     setError("")
 
     if (specInput.trim() === "") {
@@ -224,6 +232,14 @@ export default function Dashboard() {
       return
     }
 
+    if (specInput.length > MAX_SPEC_CHARS) {
+      setError(`La spécification est trop longue (maximum ${MAX_SPEC_CHARS.toLocaleString()} caractères).`)
+      return
+    }
+
+    generatingRef.current = true
+    setLoadingLabel("Analyse de la spécification…")
+    loadingTimerRef.current = setTimeout(() => setLoadingLabel("Génération des exigences…"), 2500)
     setAiLoading(true)
     setRequirements([])
 
@@ -231,16 +247,19 @@ export default function Dashboard() {
       const res = await fetch("/api/generate-requirements", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ specification: specInput }),
+        body: JSON.stringify({ specification: specInput.trim() }),
       })
 
       if (res.ok) {
         const data = await res.json()
-        setRequirements(data.requirements || [])
-        setSpecInput("")
-        await fetchProjects()
-        if (data.project?.id) {
-          setSelectedProjectId(data.project.id)
+        if (data.spec_quality === "BAD") {
+          setSpecQualityWarning("BAD")
+        } else {
+          if (data.spec_quality === "MEDIUM") setSpecQualityWarning("MEDIUM")
+          setRequirements(data.requirements || [])
+          setSpecInput("")
+          await fetchProjects()
+          if (data.project?.id) setSelectedProjectId(data.project.id)
         }
       } else {
         const text = await res.text()
@@ -249,7 +268,10 @@ export default function Dashboard() {
     } catch (err: any) {
       setError(`Erreur réseau : ${err.message}`)
     } finally {
+      if (loadingTimerRef.current) clearTimeout(loadingTimerRef.current)
+      setLoadingLabel(null)
       setAiLoading(false)
+      generatingRef.current = false
     }
   }
 
@@ -259,6 +281,47 @@ export default function Dashboard() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
+      {/* Loading overlay */}
+      {loadingLabel && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-4">
+            <div className="h-9 w-9 rounded-full border-4 border-white/30 border-t-white animate-spin" />
+            <p className="text-white text-sm font-medium tracking-wide">{loadingLabel}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Spec quality warning modal */}
+      {specQualityWarning && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+            {specQualityWarning === "BAD" ? (
+              <>
+                <h2 className="text-lg font-semibold text-red-600 mb-2">Spécification non exploitable</h2>
+                <p className="text-sm text-gray-600 mb-4">
+                  Le document fourni n&apos;a pas pu être analysé comme une spécification fonctionnelle.
+                  Merci de fournir un texte décrivant des fonctionnalités ou des comportements système.
+                </p>
+              </>
+            ) : (
+              <>
+                <h2 className="text-lg font-semibold text-amber-600 mb-2">Spécification incomplète</h2>
+                <p className="text-sm text-gray-600 mb-4">
+                  La spécification fournie est vague ou partielle. Les requirements générés risquent d&apos;être
+                  incomplets ou de faible qualité. Il est recommandé d&apos;enrichir la spécification pour obtenir
+                  de meilleurs résultats.
+                </p>
+              </>
+            )}
+            <button
+              onClick={() => setSpecQualityWarning(null)}
+              className="w-full py-2 px-4 bg-gray-900 text-white text-sm rounded-md hover:bg-gray-700 transition-colors"
+            >
+              Compris
+            </button>
+          </div>
+        </div>
+      )}
       <Sidebar
         projects={projects}
         selectedId={selectedProjectId}
@@ -319,6 +382,7 @@ export default function Dashboard() {
               onGenerateTestCases={handleGenerateTestCases}
               clarifications={clarifications}
               onTcDirectCommit={handleTcDirectCommit}
+              projectName={selectedProject?.title ?? ""}
             />
           )}
         </main>

@@ -31,10 +31,19 @@ interface TestCasesTableProps {
   onDirectCommit?: (id: string, field: TcField, value: string) => void
 }
 
+// ── Display mappings ───────────────────────────────────────────────────────
+
+const PRIORITY_LABELS: Record<string, string> = { high: "High", medium: "Medium", low: "Low" }
+const CATEGORY_LABELS: Record<string, string> = {
+  "Happy path": "Cas nominal",
+  "Negative": "Cas négatif",
+  "Edge case": "Cas limite",
+}
+
 // ── Priority badge ─────────────────────────────────────────────────────────
 
 function PriorityBadge({ priority }: { priority: string }) {
-  const label = priority ? priority.charAt(0).toUpperCase() + priority.slice(1) : "—"
+  const label = PRIORITY_LABELS[priority] ?? (priority ? priority.charAt(0).toUpperCase() + priority.slice(1) : "—")
   return (
     <Badge
       variant="outline"
@@ -119,7 +128,7 @@ export function TestCasesTable({
           <FlaskConical className="h-5 w-5 text-muted-foreground/40" />
         </div>
         <p className="text-sm text-muted-foreground">No test cases yet.</p>
-        <p className="text-xs text-muted-foreground/60">Generate them from the Requirements tab.</p>
+        <p className="text-xs text-muted-foreground/60">Générez-les depuis l'onglet Exigences.</p>
       </div>
     )
   }
@@ -211,16 +220,16 @@ export function TestCasesTable({
     <Table>
       <TableHeader>
         <TableRow className="hover:bg-transparent border-b">
-          {sortableHead("requirement", "Requirement", "w-32")}
-          {sortableHead("tc", "TC", "w-24")}
+          {sortableHead("requirement", "Exigence", "w-32")}
+          {sortableHead("tc", "CT", "w-24")}
           {sortableHead("category", "Category", "w-28")}
           <TableHead className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">
-            Steps
+            Étapes
           </TableHead>
           <TableHead className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">
-            Expected result
+            Résultat attendu
           </TableHead>
-          {sortableHead("priority", "Priority", "w-24")}
+          {sortableHead("priority", "Priorité", "w-24")}
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -239,7 +248,7 @@ export function TestCasesTable({
                 {tc.tc_code}
               </TableCell>
               <TableCell className="align-top px-4 py-3 text-sm">
-                {editableInput(tc, "category", tc.category)}
+                {editableInput(tc, "category", CATEGORY_LABELS[tc.category] ?? tc.category)}
               </TableCell>
               <TableCell className="align-top px-4 py-3 text-sm">
                 {editableTextarea(tc, "steps", tc.steps)}

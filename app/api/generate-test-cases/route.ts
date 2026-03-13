@@ -134,19 +134,28 @@ Pour chaque exigence, génère entre 1 et 4 tests selon sa complexité :
 - Ne génère jamais de tests artificiels pour atteindre un quota
 
 ━━━ RÈGLES DE PRIORITÉ ━━━
-La MAJORITÉ des tests doit être "Medium". "High" est RARE.
+Distribue les priorités de façon réaliste, comme un QA professionnel le ferait.
 
-"High" — uniquement pour :
-  • authentification, autorisation, contrôle d'accès
-  • perte ou corruption de données
-  • fonctionnalité absolument centrale du produit
-  • action irréversible avec impact fort
+"High" — UNIQUEMENT si l'échec de ce test bloquerait l'utilisation principale de l'application :
+  • création de compte, connexion, authentification
+  • création ou suppression de données critiques
+  • contrôle d'accès et permissions
+  • toute action sans laquelle l'utilisateur ne peut pas utiliser le produit
+  → Ne force jamais "High" si l'échec n'est pas bloquant.
 
-"Medium" — comportement fonctionnel standard, logique métier normale, interactions UI importantes
+"Medium" — comportement fonctionnel normal, important mais non bloquant :
+  • modification de données
+  • affectation d'éléments, changement de statut
+  • création d'objets secondaires
+  • navigation interne au produit
 
-"Low" — edge cases mineurs, cas rares, comportements cosmétiques, messages d'information
+"Low" — comportements secondaires ou non bloquants, représente environ 20 à 30 % des tests quand la spécification contient des fonctionnalités secondaires :
+  • affichages de tableau de bord
+  • messages UI, notifications, commentaires
+  • fonctionnalités cosmétiques ou informatives
+  • widgets, indicateurs visuels
 
-Règle : si tu hésites entre High et Medium, choisis Medium.
+Règle : si tu hésites entre High et Medium, choisis Medium. Si tu hésites entre Medium et Low, choisis Low.
 
 ━━━ RÈGLES POUR LES STEPS ━━━
 Chaque step doit être une ACTION utilisateur concrète et observable.

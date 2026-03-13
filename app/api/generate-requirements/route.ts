@@ -98,10 +98,26 @@ const anthropicResponse = await fetch("https://api.anthropic.com/v1/messages", {
     model: "claude-3-haiku-20240307",
     max_tokens: 2000,
     messages: [
-      { role: "user", content: `Tu es un analyste fonctionnel QA senior. Génère les exigences fonctionnelles en français à partir de la spécification ci-dessous.
+      { role: "user", content: `Tu es un analyste fonctionnel QA senior. Analyse la spécification ci-dessous puis génère les exigences fonctionnelles en français.
 
 FORMAT DE SORTIE — JSON STRICT, aucun texte avant ou après, aucun markdown :
-{"requirements":[{"id":"REQ-001","description":"Une phrase courte et atomique."},{"id":"REQ-002","description":"..."}]}
+{"spec_quality":"GOOD","requirements":[{"id":"REQ-001","description":"Une phrase courte et atomique."},{"id":"REQ-002","description":"..."}]}
+
+ÉTAPE 1 — ÉVALUER LA QUALITÉ DE LA SPÉCIFICATION :
+Classe la spécification selon exactement l'un de ces 3 niveaux et place la valeur dans "spec_quality" :
+
+- "GOOD" : le texte décrit clairement une ou plusieurs fonctionnalités, comportements système ou modules logiciels.
+  Exemples : "L'application permet aux utilisateurs de créer et partager des documents.", "Le système doit envoyer un email de confirmation après inscription."
+
+- "MEDIUM" : le texte évoque une fonctionnalité mais reste vague ou partiel.
+  Exemples : "Gestion des utilisateurs.", "Système de paiement.", "Tableau de bord statistiques."
+
+- "BAD" : le texte n'est pas une spécification fonctionnelle exploitable (texte aléatoire, hors sujet, salutation, test…).
+  Exemples : "bonjour", "ceci n'est pas une spec", "test test test".
+
+ÉTAPE 2 — GÉNÉRER LES REQUIREMENTS :
+- Si spec_quality = "BAD" : le tableau "requirements" doit être vide [].
+- Si spec_quality = "GOOD" ou "MEDIUM" : génère les exigences selon les règles ci-dessous.
 
 RÈGLE FONDAMENTALE — ATOMICITÉ (OBLIGATOIRE) :
 1 règle fonctionnelle = 1 exigence. C'est la règle la plus importante.
@@ -119,8 +135,8 @@ REQ-002 → "Le système doit s'assurer que l'adresse email est unique."
 REQ-003 → "Le système doit afficher un message de confirmation après la création du compte."
 
 RÈGLES ABSOLUES :
-- Le JSON doit contenir UNIQUEMENT la clé "requirements" contenant un tableau d'objets.
-- Chaque objet doit avoir EXACTEMENT deux champs : "id" (string, format REQ-001, REQ-002…) et "description" (string, non vide).
+- Le JSON doit contenir EXACTEMENT deux clés : "spec_quality" (string) et "requirements" (tableau d'objets).
+- Chaque objet requirements doit avoir EXACTEMENT deux champs : "id" (string, format REQ-001, REQ-002…) et "description" (string, non vide).
 - N'utilise JAMAIS d'autres noms de champs (pas "req_code", pas "title", pas "name").
 - Chaque "description" est une phrase courte, atomique et testable individuellement.
 - Aucune clé supplémentaire, aucun commentaire, aucun texte hors du JSON.
@@ -167,6 +183,13 @@ console.log("AI Response status:", anthropicResponse.status)
       parsed = await parseAIJson(text, (process.env.ANTHROPIC_API_KEY || '').trim())
     } catch (err: any) {
       return NextResponse.json({ error: err.message }, { status: 422 })
+    }
+
+    // Qualité de la spec
+    const specQuality: string = parsed.spec_quality ?? "GOOD"
+    if (specQuality === "BAD") {
+      await supabase.from('projects').delete().eq('id', project.id)
+      return NextResponse.json({ spec_quality: "BAD" }, { status: 200 })
     }
 
     // Validation de la structure
@@ -230,38 +253,34 @@ console.log("AI Response status:", anthropicResponse.status)
               role: "user",
               content: `Réponds UNIQUEMENT avec un tableau JSON valide. Aucun texte avant ni après. Aucune explication. Commence directement par "[".
 
-Tu es un analyste QA senior spécialisé dans la revue de spécifications fonctionnelles.
+Tu es un analyste QA senior chargé d'identifier les problèmes qui auraient un impact réel sur l'implémentation, la compréhension fonctionnelle ou l'écriture de tests.
 
-Ta mission est d'identifier toutes les ambiguïtés, imprécisions ou informations manquantes qui empêcheraient un testeur d'écrire des cas de test précis et reproductibles.
+PRINCIPE FONDAMENTAL :
+Un requirement clair et bien formulé ne doit produire AUCUN point à clarifier. Il est normal et attendu que la majorité des requirements n'en génèrent pas.
+L'objectif est la qualité, pas la quantité.
 
-IMPORTANT :
-Une spécification imparfaite doit produire des clarifications.
-Si un requirement contient un terme vague ou subjectif, il doit être signalé.
+TYPES AUTORISÉS — tu dois utiliser exactement l'un de ces trois types pour chaque entrée :
 
-Considère comme ambigu tout requirement contenant :
+"ambiguity" — Le requirement peut être interprété de plusieurs façons. Deux développeurs pourraient implémenter des comportements différents.
+  Cela inclut les requirements contenant un verbe d'action vague qui ne décrit pas ce que le système fait concrètement.
+  Verbes vagues à détecter : gérer, traiter, intervenir, prendre en charge, s'occuper de, opérer, supporter, permettre la gestion de, agir sur, administrer (sans précision de l'action).
+  Exemple vague : "Un administrateur peut intervenir sur les réservations." → "Intervenir" ne définit aucune action concrète (modifier ? annuler ? rembourser ?).
+  Exemple clair (ne pas signaler) : "Un administrateur peut modifier ou annuler une réservation." → Les actions sont explicites.
+  Autre exemple : "Le système affiche les données récentes." → Récentes signifie quoi ? 24h, 7 jours, depuis la dernière connexion ?
 
-1. TERMES SUBJECTIFS OU NON MESURABLES
-performant, rapide, simple, facile, intuitif, important, approprié, correct, nécessaire, adéquat, suffisant, acceptable, efficace, ergonomique, convivial, sécurisé
+"missing_rule" — Une règle métier ou une condition est implicite mais non exprimée.
+  Exemples : permissions manquantes, seuil non défini, règle de validation absente, transition d'état non décrite, comportement en cas d'erreur non spécifié.
+  Exemple : "Le système verrouille le compte après plusieurs tentatives." → Combien de tentatives ? Le verrou est-il permanent ou temporaire ?
 
-2. PORTÉE NON DÉFINIE
-certaines actions, certains utilisateurs, certaines informations, dans certains cas, selon le contexte
+"missing_info" — Une information concrète indispensable pour écrire le test est absente.
+  Exemples : canal de notification non précisé, format de données manquant, délai non défini, valeur limite absente, contrainte de champ non décrite.
+  Exemple : "L'utilisateur reçoit une notification." → Par quel canal ? Email, SMS, in-app ?
 
-3. CONDITIONS MANQUANTES
-si nécessaire, lorsqu'un événement se produit, si cela est autorisé, dans les cas habituels
-
-4. RÈGLES MÉTIER NON DÉFINIES
-fonctionnalités concernées, accès approprié, permissions adéquates
-
-5. CRITÈRES NON MESURABLES
-système performant, accès rapide, chargement fluide, interface simple
-
-RÈGLES :
-
-- Analyse chaque requirement individuellement
-- Une requirement peut produire plusieurs ambiguïtés
-- Il vaut mieux signaler trop d'ambiguïtés que pas assez
-- N'ignore jamais un terme vague
-- Explique toujours pourquoi c'est ambigu
+NE PAS signaler :
+- Les termes dont la définition est évidente dans le contexte métier standard.
+- Les formulations génériques qui ne créent pas de doute réel pour un testeur.
+- Les observations du type "le terme X n'est pas défini" si X est communément compris.
+- Les répétitions du même type d'observation sur plusieurs requirements.
 
 Format de sortie :
 
@@ -269,8 +288,20 @@ Format de sortie :
   {
     "reference": "REQ-XXX",
     "type": "ambiguity",
-    "ambiguity": "explication précise du problème",
-    "recommendation": "information qui doit être précisée"
+    "ambiguity": "Le critère 'récent' n'est pas défini : la fenêtre temporelle à considérer est inconnue.",
+    "recommendation": "Préciser la durée : dernières 24h, 7 jours, ou depuis la dernière connexion."
+  },
+  {
+    "reference": "REQ-XXX",
+    "type": "missing_rule",
+    "ambiguity": "Le comportement du système en cas de tentatives de connexion échouées n'est pas défini.",
+    "recommendation": "Préciser le nombre de tentatives avant verrouillage et la durée du verrouillage."
+  },
+  {
+    "reference": "REQ-XXX",
+    "type": "missing_info",
+    "ambiguity": "Le canal de notification n'est pas précisé.",
+    "recommendation": "Indiquer si la notification est envoyée par email, SMS ou in-app."
   }
 ]
 
@@ -323,7 +354,7 @@ ${requirementsList}`
       console.error('Erreur lors de la génération des clarifications:', err)
     }
 
-return NextResponse.json({ project, requirements }, { status: 200 })
+return NextResponse.json({ project, requirements, spec_quality: specQuality }, { status: 200 })
 
   } catch {
     return NextResponse.json(
