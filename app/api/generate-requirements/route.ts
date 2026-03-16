@@ -65,27 +65,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-        const { data: project, error } = await supabase
-      .from('projects')
-      .insert({
-        user_id: user.id,
-        title: 'New Project',
-        original_spec: specification,
-      })
-      .select()
-      .single()
-
-        if (error) {
-      return NextResponse.json(
-        { error: 'Failed to create project' },
-        { status: 500 }
-      )
-    }
  // Appel à l'API Anthropic
+    const apiKey = (process.env.ANTHROPIC_API_KEY || '').trim()
     let aiRaw: any
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 60_000)
     try {
 
-const apiKey = (process.env.ANTHROPIC_API_KEY || '').trim()
 console.log("Calling:", "https://api.anthropic.com/v1/messages")
 const anthropicResponse = await fetch("https://api.anthropic.com/v1/messages", {
   method: "POST",
@@ -94,9 +80,10 @@ const anthropicResponse = await fetch("https://api.anthropic.com/v1/messages", {
     "x-api-key": apiKey,
     "anthropic-version": "2023-06-01"
   },
+  signal: controller.signal,
   body: JSON.stringify({
-    model: "claude-3-haiku-20240307",
-    max_tokens: 2000,
+    model: "claude-haiku-4-5-20251001",
+    max_tokens: 4096,
     messages: [
       { role: "user", content: `Tu es un analyste fonctionnel QA senior. Analyse la spécification ci-dessous puis génère les exigences fonctionnelles en français.
 
@@ -131,8 +118,32 @@ EXEMPLE DE MAUVAISE EXIGENCE (INTERDIT) :
 
 EXEMPLE CORRECT (3 exigences atomiques) :
 REQ-001 → "Le système doit permettre à un utilisateur de créer un compte."
-REQ-002 → "Le système doit s'assurer que l'adresse email est unique."
+REQ-002 → "Le système doit s'assurer que l'adresse email n'est pas déjà utilisée lors de l'inscription."
 REQ-003 → "Le système doit afficher un message de confirmation après la création du compte."
+
+━━━ RÈGLE DE FORMULATION COMPORTEMENTALE ━━━
+Une exigence décrit un comportement du système, pas un champ de base de données.
+Si la spec liste des champs ("contient : nom, description, date"), reformule chaque champ en comportement observable :
+- Champ obligatoire saisi par l'utilisateur → "Le système requiert [champ] lors de la création de [entité]."
+- Champ généré automatiquement par le système → "Le système enregistre automatiquement [champ] à la création de [entité]."
+- Champ optionnel → "[Champ] est optionnel lors de la création de [entité]."
+Ne génère jamais une exigence du type "Un projet doit contenir un nom." — ce n'est pas testable en tant que comportement.
+
+━━━ RÈGLES IMPLICITES À DÉTECTER ━━━
+Certaines règles ne sont jamais écrites dans une spec mais sont systématiquement attendues par un QA senior.
+Si la spec contient l'un de ces éléments, génère les exigences correspondantes même si elles ne sont pas explicitement formulées :
+
+- Inscription avec email → générer : "Le système vérifie que l'adresse email n'est pas déjà utilisée lors de l'inscription."
+- Connexion avec mot de passe → générer : "Le système bloque l'accès si les identifiants sont incorrects."
+- Lien envoyé par email (réinitialisation, invitation, confirmation) → générer : "Le lien [type] envoyé par email expire après utilisation ou après un délai défini."
+- Formulaire avec champ mot de passe → générer une exigence sur la validation du format si des contraintes sont implicitement attendues.
+- Action irréversible (suppression, archivage) → générer : "Le système demande une confirmation avant d'exécuter [action]." si ce n'est pas précisé.
+
+━━━ RÈGLE DE PERMISSION ━━━
+Si la spec définit des rôles utilisateurs (admin, membre, invité, etc.), pour chaque action (créer, modifier, supprimer, archiver, déplacer, partager, assigner, commenter), vérifie si la spec précise explicitement qui peut l'effectuer.
+- Si le rôle est précisé dans la spec → inclure le rôle dans la description de l'exigence : "Un administrateur peut [action]."
+- Si le rôle n'est pas précisé mais que des rôles existent → formuler avec "un utilisateur autorisé" pour signaler l'ambiguïté sans bloquer la génération.
+Ne génère pas d'exigence de permission pour les actions qui s'appliquent universellement à tous les utilisateurs connectés.
 
 RÈGLES ABSOLUES :
 - Le JSON doit contenir EXACTEMENT deux clés : "spec_quality" (string) et "requirements" (tableau d'objets).
@@ -149,7 +160,7 @@ ${specification}` }
 
 if (!anthropicResponse.ok) {
   const errorText = await anthropicResponse.text()
-  console.log("RAW ERROR:", errorText)
+  console.error('[generate-requirements] Anthropic API error:', errorText)
   return NextResponse.json(
     { error: 'Failed to call AI API' },
     { status: 500 }
@@ -158,7 +169,9 @@ if (!anthropicResponse.ok) {
 
 aiRaw = await anthropicResponse.json()
 console.log("AI Response status:", anthropicResponse.status)
+      clearTimeout(timeoutId)
     } catch (error) {
+      clearTimeout(timeoutId)
       console.error('Erreur lors de l\'appel à l\'API Anthropic:', error)
       return NextResponse.json(
         { error: 'Failed to call AI API' },
@@ -182,13 +195,13 @@ console.log("AI Response status:", anthropicResponse.status)
     try {
       parsed = await parseAIJson(text, (process.env.ANTHROPIC_API_KEY || '').trim())
     } catch (err: any) {
+      console.error('[generate-requirements] Failed to parse AI JSON:', err.message)
       return NextResponse.json({ error: err.message }, { status: 422 })
     }
 
     // Qualité de la spec
     const specQuality: string = parsed.spec_quality ?? "GOOD"
     if (specQuality === "BAD") {
-      await supabase.from('projects').delete().eq('id', project.id)
       return NextResponse.json({ spec_quality: "BAD" }, { status: 200 })
     }
 
@@ -220,11 +233,30 @@ console.log("AI Response status:", anthropicResponse.status)
       description: item.description,
     }))
 
+    // Création du projet (uniquement si l'IA a produit des exigences valides)
+    const { data: project, error: projectError } = await supabase
+      .from('projects')
+      .insert({
+        user_id: user.id,
+        title: 'New Project',
+        original_spec: specification,
+      })
+      .select()
+      .single()
+
+    if (projectError) {
+      return NextResponse.json(
+        { error: 'Failed to create project' },
+        { status: 500 }
+      )
+    }
+
     // Insertion en DB
     let requirements
     try {
       requirements = await insertRequirements(supabase, project.id, mappedItems)
-    } catch {
+    } catch (err) {
+      console.error('[generate-requirements] Supabase insert requirements error:', err)
       return NextResponse.json(
         { error: 'Failed to create requirements' },
         { status: 500 }
@@ -238,6 +270,8 @@ console.log("AI Response status:", anthropicResponse.status)
         .map((r: any) => `- ${r.req_code}: ${r.description}`)
         .join('\n')
 
+      const clarController = new AbortController()
+      const clarTimeoutId = setTimeout(() => clarController.abort(), 60_000)
       const clarResponse = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: {
@@ -245,8 +279,9 @@ console.log("AI Response status:", anthropicResponse.status)
           "x-api-key": clarApiKey,
           "anthropic-version": "2023-06-01"
         },
+        signal: clarController.signal,
         body: JSON.stringify({
-          model: "claude-3-haiku-20240307",
+          model: "claude-haiku-4-5-20251001",
           max_tokens: 4096,
           messages: [
             {
@@ -258,6 +293,23 @@ Tu es un analyste QA senior chargé d'identifier les problèmes qui auraient un 
 PRINCIPE FONDAMENTAL :
 Un requirement clair et bien formulé ne doit produire AUCUN point à clarifier. Il est normal et attendu que la majorité des requirements n'en génèrent pas.
 L'objectif est la qualité, pas la quantité.
+
+━━━ ÉTAPE 0 — REGROUPER LES EXIGENCES CONNEXES ━━━
+Avant de générer les clarifications, identifie les groupes de requirements qui partagent le même domaine fonctionnel (ex : toutes les REQs sur les notifications, toutes celles sur les permissions d'une même entité, toutes celles sur un même mécanisme).
+Règle absolue : si la même observation s'applique à plusieurs requirements d'un même groupe, génère-la UNE SEULE FOIS en référençant le premier REQ concerné.
+Ne répète jamais la même clarification pour des REQs adjacentes qui partagent le même contexte ou la même lacune.
+
+━━━ CHECKLIST SÉCURITÉ — vérifie systématiquement ━━━
+Pour chaque spec, applique ces contrôles indépendamment des instructions générales :
+- Lien envoyé par email (réinitialisation de mot de passe, invitation, confirmation) → signaler si la durée de validité ou les conditions d'expiration ne sont pas définies.
+- Création de compte avec mot de passe → signaler si les règles de complexité (longueur minimale, caractères requis) ne sont pas définies.
+- Action irréversible (suppression définitive, archivage) → signaler si une confirmation utilisateur ou une restriction de permission n'est pas définie.
+- Accès externe (invité, lien de partage) → signaler si le mécanisme de contrôle d'accès et l'authentification requise ne sont pas précisés.
+
+━━━ DÉTECTION DES PERMISSIONS MANQUANTES ━━━
+Pour chaque requirement décrivant une action (verbes : déplacer, archiver, assigner, réassigner, commenter, supprimer, partager, filtrer, exporter, modifier le rôle), vérifie si la spec précise explicitement qui peut l'effectuer.
+Si le "qui" n'est pas défini et que la spec comporte des rôles utilisateurs → générer une clarification de type "missing_rule".
+Applique ce contrôle même pour des actions qui paraissent anodines (déplacer une carte Kanban, marquer comme lu, ajouter un tag) car les permissions implicites sont une source fréquente d'anomalies en production.
 
 TYPES AUTORISÉS — tu dois utiliser exactement l'un de ces trois types pour chaque entrée :
 
@@ -311,6 +363,7 @@ ${requirementsList}`
           ]
         })
       })
+      clearTimeout(clarTimeoutId)
 
       if (clarResponse.ok) {
         const clarRaw = await clarResponse.json()
@@ -330,12 +383,22 @@ ${requirementsList}`
                 : [parsedClar]
             console.log("CLAR ARRAY LENGTH:", clarArray?.length, "IS ARRAY:", Array.isArray(clarArray))
             if (Array.isArray(clarArray) && clarArray.length > 0) {
-              const clarificationsToInsert = clarArray.map((c: any) => ({
+              const clarificationsToInsert = clarArray
+                .filter((c: any) => {
+                  const ref = c.reference ?? c.element_reference
+                  const expl = c.ambiguity ?? c.explanation
+                  return (
+                    typeof ref === 'string' && ref.trim() !== '' &&
+                    typeof expl === 'string' && expl.trim() !== '' &&
+                    typeof c.recommendation === 'string' && c.recommendation.trim() !== ''
+                  )
+                })
+                .map((c: any) => ({
                 project_id: project.id,
-                type: c.type ?? 'ambiguity',
-                element_reference: c.reference ?? c.element_reference,
-                explanation: c.ambiguity ?? c.explanation,
-                recommendation: c.recommendation,
+                type: typeof c.type === 'string' && c.type.trim() !== '' ? c.type : 'ambiguity',
+                element_reference: (c.reference ?? c.element_reference).trim(),
+                explanation: (c.ambiguity ?? c.explanation).trim(),
+                recommendation: c.recommendation.trim(),
               }))
               console.log("INSERTING CLARIFICATIONS:", JSON.stringify(clarificationsToInsert))
               const { error: clarInsertError } = await supabase.from('clarifications').insert(clarificationsToInsert)
@@ -356,7 +419,8 @@ ${requirementsList}`
 
 return NextResponse.json({ project, requirements, spec_quality: specQuality }, { status: 200 })
 
-  } catch {
+  } catch (err) {
+    console.error('[generate-requirements] Unexpected error:', err)
     return NextResponse.json(
       { error: 'Invalid JSON' },
       { status: 400 }
