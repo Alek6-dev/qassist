@@ -213,7 +213,19 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  // 3. Fetch requirements
+  // 3. Verify project ownership explicitly (defense in depth over RLS)
+  const { data: project, error: projectError } = await supabase
+    .from("projects")
+    .select("id")
+    .eq("id", projectId)
+    .eq("user_id", user.id)
+    .single()
+
+  if (projectError || !project) {
+    return NextResponse.json({ error: "Project not found" }, { status: 404 })
+  }
+
+  // 4. Fetch requirements
   const { data: requirements, error: reqError } = await supabase
     .from("requirements")
     .select("id, req_code, description")
@@ -233,7 +245,7 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  // 4. Check API key
+  // 5. Check API key
   const apiKey = (process.env.ANTHROPIC_API_KEY || "").trim()
   if (!apiKey) {
     return NextResponse.json(
@@ -242,7 +254,7 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  // 5. Split requirements into batches
+  // 6. Split requirements into batches
   const batches: Array<typeof requirements> = []
   for (let i = 0; i < requirements.length; i += BATCH_SIZE) {
     batches.push(requirements.slice(i, i + BATCH_SIZE))
@@ -253,7 +265,7 @@ export async function POST(request: NextRequest) {
     console.log(`[generate-test-cases] ${requirements.length} requirements → ${batches.length} batch(es) of ${BATCH_SIZE}`)
   }
 
-  // 6. Call AI for each batch sequentially, accumulate raw test cases
+  // 7. Call AI for each batch sequentially, accumulate raw test cases
   const allRawTestCases: any[] = []
   let tcOffset = 0
 
@@ -275,7 +287,7 @@ export async function POST(request: NextRequest) {
     console.log(`[generate-test-cases] ${allRawTestCases.length} TC(s) received across all batches`)
   }
 
-  // 7. Map all raw TCs → DB rows
+  // 8. Map all raw TCs → DB rows
   const reqCodeToId = new Map<string, string>()
   for (const r of requirements) {
     reqCodeToId.set(r.req_code, r.id)
@@ -351,7 +363,7 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  // 8. Delete existing test_cases (only after successful AI generation across all batches)
+  // 9. Delete existing test_cases (only after successful AI generation across all batches)
   const { error: deleteError } = await supabase
     .from("test_cases")
     .delete()
@@ -364,7 +376,7 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  // 9. Insert
+  // 10. Insert
   const { data: inserted, error: insertError } = await supabase
     .from("test_cases")
     .insert(toInsert)

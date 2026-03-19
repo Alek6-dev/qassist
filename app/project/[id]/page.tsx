@@ -1,7 +1,7 @@
 import { Fragment } from "react"
 import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
-import { notFound } from "next/navigation"
+import { notFound, redirect } from "next/navigation"
 import Link from "next/link"
 import EditableRequirement from "@/components/EditableRequirement"
 import AddRequirement from "@/components/AddRequirement"
@@ -48,10 +48,14 @@ export default async function ProjectPage({
     }
   )
 
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect("/login")
+
   const { data: project } = await supabase
     .from("projects")
     .select("id, title, created_at")
     .eq("id", id)
+    .eq("user_id", user.id)
     .single<Project>()
 
   if (!project) {

@@ -27,20 +27,6 @@ const supabase = createServerClient(
     error,
   } = await supabase.auth.getSession()
 
-  // DEBUG (dans le terminal)
-  const cookieNames = request.cookies.getAll().map((c) => c.name)
-  console.log("---- MIDDLEWARE DEBUG ----")
-  console.log("PATH:", request.nextUrl.pathname)
-  console.log("HAS SESSION:", !!session)
-  console.log("SESSION ERROR:", error?.message ?? null)
-  console.log(
-    "COOKIES:",
-    cookieNames.filter(
-      (n) => n.includes("sb-") || n.includes("supabase") || n.includes("auth")
-    )
-  )
-  console.log("--------------------------")
-
   const isProtected =
     request.nextUrl.pathname.startsWith("/dashboard") ||
     request.nextUrl.pathname.startsWith("/project")

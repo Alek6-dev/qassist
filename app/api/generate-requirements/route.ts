@@ -39,6 +39,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const MAX_SPEC_CHARS = 50_000
+    if (specification.length > MAX_SPEC_CHARS) {
+      return NextResponse.json(
+        { error: `Specification too long (max ${MAX_SPEC_CHARS.toLocaleString()} characters)` },
+        { status: 400 }
+      )
+    }
+
     const cookieStore = await cookies()
 
     const supabase = createServerClient(
@@ -65,14 +73,28 @@ export async function POST(request: NextRequest) {
       )
     }
 
- // Appel à l'API Anthropic
+    // Rate limiting : max 10 générations par heure par utilisateur
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()
+    const { count: recentCount } = await supabase
+      .from('projects')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .gte('created_at', oneHourAgo)
+
+    if ((recentCount ?? 0) >= 10) {
+      return NextResponse.json(
+        { error: 'Too many requests. Maximum 10 generations per hour.' },
+        { status: 429 }
+      )
+    }
+
+    // Appel à l'API Anthropic
     const apiKey = (process.env.ANTHROPIC_API_KEY || '').trim()
     let aiRaw: any
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 60_000)
     try {
 
-console.log("Calling:", "https://api.anthropic.com/v1/messages")
 const anthropicResponse = await fetch("https://api.anthropic.com/v1/messages", {
   method: "POST",
   headers: {
@@ -159,8 +181,6 @@ ${specification}` }
 })
 
 if (!anthropicResponse.ok) {
-  const errorText = await anthropicResponse.text()
-  console.error('[generate-requirements] Anthropic API error:', errorText)
   return NextResponse.json(
     { error: 'Failed to call AI API' },
     { status: 500 }
@@ -168,7 +188,6 @@ if (!anthropicResponse.ok) {
 }
 
 aiRaw = await anthropicResponse.json()
-console.log("AI Response status:", anthropicResponse.status)
       clearTimeout(timeoutId)
     } catch (error) {
       clearTimeout(timeoutId)
@@ -181,7 +200,6 @@ console.log("AI Response status:", anthropicResponse.status)
 
     // Extraction du texte
     const text = aiRaw.content?.[0]?.text ?? ''
-    console.log("AI text preview:", text.slice(0, 200))
     
     if (!text) {
       return NextResponse.json(
@@ -368,20 +386,15 @@ ${requirementsList}`
       if (clarResponse.ok) {
         const clarRaw = await clarResponse.json()
         const clarText = clarRaw.content?.[0]?.text ?? ''
-        console.log("CLAUDE CLARIFICATIONS RAW:")
-        console.log(clarText)
 
         if (clarText) {
           try {
             const parsedClar = await parseAIJson(clarText, clarApiKey)
-            console.log("PARSED CLARIFICATIONS:")
-            console.log(parsedClar)
             const clarArray = Array.isArray(parsedClar)
               ? parsedClar
               : Array.isArray(parsedClar.clarifications)
                 ? parsedClar.clarifications
                 : [parsedClar]
-            console.log("CLAR ARRAY LENGTH:", clarArray?.length, "IS ARRAY:", Array.isArray(clarArray))
             if (Array.isArray(clarArray) && clarArray.length > 0) {
               const clarificationsToInsert = clarArray
                 .filter((c: any) => {
@@ -400,16 +413,10 @@ ${requirementsList}`
                 explanation: (c.ambiguity ?? c.explanation).trim(),
                 recommendation: c.recommendation.trim(),
               }))
-              console.log("INSERTING CLARIFICATIONS:", JSON.stringify(clarificationsToInsert))
-              const { error: clarInsertError } = await supabase.from('clarifications').insert(clarificationsToInsert)
-              if (clarInsertError) {
-                console.error("CLARIFICATIONS INSERT ERROR:", clarInsertError)
-              } else {
-                console.log("CLARIFICATIONS INSERTED OK")
-              }
+              await supabase.from('clarifications').insert(clarificationsToInsert)
             }
           } catch (err) {
-            console.error("CLARIFICATIONS CATCH ERROR:", err)
+            console.error('[generate-requirements] Clarifications parsing error:', err)
           }
         }
       }
