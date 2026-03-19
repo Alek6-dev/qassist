@@ -3,7 +3,8 @@
 import { useState, useRef, useEffect } from "react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { FileText, FolderKanban, LogOut, MoreHorizontal, Zap } from "lucide-react"
+import { FileText, FolderKanban, LogOut, MoreHorizontal } from "lucide-react"
+import Image from "next/image"
 
 type Project = { id: string; title: string; created_at: string | null }
 
@@ -61,9 +62,13 @@ export function Sidebar({ projects, selectedId, loading, onSelect, onLogout, onL
         onClick={onLogoClick}
         className="h-14 flex items-center gap-2.5 px-4 border-b shrink-0 w-full hover:bg-muted/40 transition-colors"
       >
-        <div className="w-6 h-6 rounded-md bg-primary flex items-center justify-center shrink-0">
-          <Zap className="h-3.5 w-3.5 text-primary-foreground" />
-        </div>
+        <Image
+          src="/Logo-fond-blanc.svg"
+          alt="QAssist logo"
+          width={24}
+          height={24}
+          className="shrink-0"
+        />
         <span className="font-semibold text-sm tracking-tight">QAssist</span>
       </button>
 
