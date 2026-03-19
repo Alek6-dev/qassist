@@ -287,6 +287,11 @@ export default function Dashboard() {
           <div className="flex flex-col items-center gap-4">
             <div className="h-9 w-9 rounded-full border-4 border-white/30 border-t-white animate-spin" />
             <p className="text-white text-sm font-medium tracking-wide">{loadingLabel}</p>
+            <p className="text-white/60 text-xs">
+              {loadingLabel.startsWith("Génération des cas de test")
+                ? "Cela peut prendre 1 à 2 minutes"
+                : "Cela peut prendre quelques secondes"}
+            </p>
           </div>
         </div>
       )}

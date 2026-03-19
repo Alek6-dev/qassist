@@ -18,7 +18,7 @@ type PdfState = {
   previewText: string
 }
 
-const MAX_SIZE = 10 * 1024 * 1024 // 10MB
+const MAX_SIZE = 5 * 1024 * 1024 // 5MB
 
 export function WorkspaceEmpty({ specInput, onSpecChange, onGenerate, loading }: WorkspaceEmptyProps) {
   const [isDragOver, setIsDragOver] = useState(false)
@@ -35,7 +35,7 @@ export function WorkspaceEmpty({ specInput, onSpecChange, onGenerate, loading }:
 
   const validateFile = (file: File): string | null => {
     if (file.type !== "application/pdf") return "Le fichier doit être un PDF."
-    if (file.size > MAX_SIZE) return "Le fichier dépasse la limite de 10MB."
+    if (file.size > MAX_SIZE) return "Le fichier dépasse la limite de 5MB."
     return null
   }
 
@@ -206,7 +206,7 @@ export function WorkspaceEmpty({ specInput, onSpecChange, onGenerate, loading }:
                 {isUploading ? "Extraction du texte en cours…" : "Importez ou déposez votre document PDF ici"}
               </p>
               {!isUploading && (
-                <p className="text-xs text-muted-foreground/50 mt-0.5">Max 10MB — ou collez votre texte ci-dessous</p>
+                <p className="text-xs text-muted-foreground/50 mt-0.5">Max 5MB — ou collez votre texte ci-dessous</p>
               )}
             </div>
           </div>
