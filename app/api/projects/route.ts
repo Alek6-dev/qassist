@@ -27,8 +27,8 @@ export async function POST(request: NextRequest) {
     const { data, error } = await supabase
       .from('projects')
       .insert({
-        owner_id: user.id,
-        name: body.name,
+        user_id: user.id,
+        title: body.name,
         description: body.description
       })
       .select()

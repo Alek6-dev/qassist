@@ -41,7 +41,8 @@ export default function Dashboard() {
 
   const handleTcDirectCommit = async (id: string, field: "category" | "steps" | "expected_result" | "priority", value: string) => {
     setTestCases(prev => prev.map(tc => tc.id === id ? { ...tc, [field]: value } : tc))
-    await supabase.from("test_cases").update({ [field]: value }).eq("id", id)
+    const { error } = await supabase.from("test_cases").update({ [field]: value }).eq("id", id)
+    if (error) setError("Échec de la sauvegarde. Veuillez réessayer.")
   }
 
   const handleTcEditStart = (id: string, field: "category" | "steps" | "expected_result" | "priority", currentValue: string) => {
@@ -55,7 +56,8 @@ export default function Dashboard() {
     const value = editingTcValue
     setEditingTcCell(null)
     setTestCases(prev => prev.map(tc => tc.id === id ? { ...tc, [field]: value } : tc))
-    await supabase.from("test_cases").update({ [field]: value }).eq("id", id)
+    const { error } = await supabase.from("test_cases").update({ [field]: value }).eq("id", id)
+    if (error) setError("Échec de la sauvegarde. Veuillez réessayer.")
   }
 
   const handleEditStart = (id: string, field: "req_code" | "description", currentValue: string) => {
@@ -69,12 +71,14 @@ export default function Dashboard() {
     const value = editingValue
     setEditingCell(null)
     setRequirements(prev => prev.map(r => r.id === id ? { ...r, [field]: value } : r))
-    await supabase.from("requirements").update({ [field]: value }).eq("id", id)
+    const { error } = await supabase.from("requirements").update({ [field]: value }).eq("id", id)
+    if (error) setError("Échec de la sauvegarde. Veuillez réessayer.")
   }
 
   const handleRenameProject = async (id: string, newTitle: string) => {
     setProjects(prev => prev.map(p => p.id === id ? { ...p, title: newTitle } : p))
-    await supabase.from("projects").update({ title: newTitle }).eq("id", id)
+    const { error } = await supabase.from("projects").update({ title: newTitle }).eq("id", id)
+    if (error) setError("Échec du renommage. Veuillez réessayer.")
   }
 
   const handleDeleteProject = async () => {
@@ -83,12 +87,14 @@ export default function Dashboard() {
     setDeleteTargetId(null)
     setProjects(prev => prev.filter(p => p.id !== id))
     if (selectedProjectId === id) setSelectedProjectId(null)
-    await supabase.from("projects").delete().eq("id", id)
+    const { error } = await supabase.from("projects").delete().eq("id", id)
+    if (error) setError("Échec de la suppression. Veuillez réessayer.")
   }
 
   const handleAddRequirement = async (req_code: string, description: string) => {
     if (!selectedProjectId) return
-    await supabase.from("requirements").insert({ project_id: selectedProjectId, req_code, description })
+    const { error } = await supabase.from("requirements").insert({ project_id: selectedProjectId, req_code, description })
+    if (error) { setError("Échec de l'ajout. Veuillez réessayer."); return }
     await fetchRequirements(selectedProjectId)
   }
 
