@@ -38,6 +38,10 @@ const CATEGORY_LABELS: Record<string, string> = {
   "Happy path": "Cas nominal",
   "Negative": "Cas négatif",
   "Edge case": "Cas limite",
+  "Permissions/Security": "Permissions/Sécurité",
+  "UI/UX": "UI/UX",
+  "Data/State": "Données/État",
+  "Integration": "Intégration",
 }
 
 // ── Priority badge ─────────────────────────────────────────────────────────
@@ -222,7 +226,7 @@ export function TestCasesTable({
         <TableRow className="hover:bg-transparent border-b">
           {sortableHead("requirement", "Exigence", "w-32")}
           {sortableHead("tc", "CT", "w-24")}
-          {sortableHead("category", "Category", "w-28")}
+          {sortableHead("category", "Catégorie", "w-28")}
           <TableHead className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">
             Étapes
           </TableHead>

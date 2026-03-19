@@ -231,7 +231,7 @@ export function WorkspaceEmpty({ specInput, onSpecChange, onGenerate, loading }:
           <Textarea
             value={specInput}
             onChange={(e) => onSpecChange(e.target.value)}
-            placeholder="Paste your specification here…"
+            placeholder="Collez votre spécification ici…"
             className="min-h-[160px] resize-none text-sm"
           />
         )}
