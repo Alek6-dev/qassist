@@ -203,7 +203,7 @@ export function WorkspaceEmpty({ specInput, onSpecChange, onGenerate, loading }:
             </div>
             <div>
               <p className="text-sm font-medium text-muted-foreground">
-                {isUploading ? "Extraction du texte en cours…" : "Drag & drop a PDF specification"}
+                {isUploading ? "Extraction du texte en cours…" : "Glissez-déposez un PDF ou cliquez pour importer"}
               </p>
               {!isUploading && (
                 <p className="text-xs text-muted-foreground/50 mt-0.5">Max 10MB — or paste your text below</p>

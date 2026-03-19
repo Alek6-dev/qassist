@@ -72,7 +72,7 @@ function CoverageSummaryModal({
         {/* Stats */}
         <div className="px-5 py-4 space-y-2.5">
           <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">{total} requirement{total !== 1 ? "s" : ""}</span>
+            <span className="text-muted-foreground">{total} exigence{total !== 1 ? "s" : ""}</span>
           </div>
           <div className="flex items-center justify-between text-sm">
             <span className="flex items-center gap-2">
@@ -166,10 +166,20 @@ export function WorkspaceProject({
   const handleExportCsv = () => {
     const escape = (v: string) => `"${(v ?? "").replace(/"/g, '""')}"`
     const reqMap = new Map(requirements.map(r => [r.id, r]))
-    const headers = ["Test Case ID", "Requirement ID", "Requirement Description", "Category", "Test Steps", "Expected Result", "Priority"]
+    const CATEGORY_FR: Record<string, string> = {
+      "Happy path": "Cas nominal",
+      "Negative": "Cas négatif",
+      "Edge case": "Cas limite",
+      "Permissions/Security": "Permissions/Sécurité",
+      "UI/UX": "UI/UX",
+      "Data/State": "Données/État",
+      "Integration": "Intégration",
+    }
+    const PRIORITY_FR: Record<string, string> = { high: "Haute", medium: "Moyenne", low: "Basse" }
+    const headers = ["ID Cas de test", "ID Exigence", "Description de l'exigence", "Catégorie", "Étapes", "Résultat attendu", "Priorité"]
     const rows = testCases.map(tc => {
       const req = reqMap.get(tc.requirement_id)
-      return [tc.tc_code, req?.req_code, req?.description, tc.category, tc.steps, tc.expected_result, tc.priority]
+      return [tc.tc_code, req?.req_code, req?.description, CATEGORY_FR[tc.category] ?? tc.category, tc.steps, tc.expected_result, PRIORITY_FR[tc.priority] ?? tc.priority]
         .map(v => escape(String(v ?? "")))
         .join(",")
     })
