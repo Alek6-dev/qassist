@@ -60,9 +60,6 @@ export default function LoginPage() {
             className="mb-3"
           />
           <h1 className="text-xl font-semibold tracking-tight text-foreground">QAssist</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Transformez vos specs en artefacts QA
-          </p>
         </div>
 
         {/* Card */}
@@ -79,7 +76,7 @@ export default function LoginPage() {
                   : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              Sign In
+              Connexion
             </button>
             <button
               type="button"
@@ -90,7 +87,7 @@ export default function LoginPage() {
                   : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              Sign Up
+              Inscription
             </button>
           </div>
 
@@ -137,7 +134,7 @@ export default function LoginPage() {
               disabled={loading}
               className="w-full py-2 text-sm font-medium bg-gray-900 text-white rounded-md hover:bg-gray-700 transition-colors disabled:opacity-50"
             >
-              {loading ? '…' : mode === 'signin' ? 'Sign In' : 'Create account'}
+              {loading ? '…' : mode === 'signin' ? 'Se connecter' : 'Créer un compte'}
             </button>
           </form>
         </div>
