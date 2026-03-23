@@ -5,7 +5,7 @@ import { PDFParse } from 'pdf-parse'
 
 export const runtime = 'nodejs'
 
-const MAX_SIZE = 10 * 1024 * 1024 // 10MB
+const MAX_SIZE = 5 * 1024 * 1024 // 5MB
 
 export async function POST(request: NextRequest) {
   try {
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (file.size > MAX_SIZE) {
-      return NextResponse.json({ error: 'Le fichier dépasse la limite de 10MB.' }, { status: 400 })
+      return NextResponse.json({ error: 'Le fichier dépasse la limite de 5MB.' }, { status: 400 })
     }
 
     // ── Extract text ─────────────────────────────────────────────────────────

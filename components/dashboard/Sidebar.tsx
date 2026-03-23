@@ -77,7 +77,7 @@ export function Sidebar({ projects, selectedId, loading, onSelect, onLogout, onL
         <div className="flex items-center gap-1.5 px-2 mb-1.5">
           <FolderKanban className="h-3 w-3 text-muted-foreground/70" />
           <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">
-            Projects
+            Projets
           </span>
         </div>
 
@@ -86,7 +86,7 @@ export function Sidebar({ projects, selectedId, loading, onSelect, onLogout, onL
         )}
 
         {!loading && projects.length === 0 && (
-          <p className="px-3 py-2 text-sm text-muted-foreground">No projects yet.</p>
+          <p className="px-3 py-2 text-sm text-muted-foreground">Aucun projet.</p>
         )}
 
         <nav className="space-y-0.5 mt-1">
@@ -157,7 +157,7 @@ export function Sidebar({ projects, selectedId, loading, onSelect, onLogout, onL
                     className="w-full text-left px-3 py-1.5 text-sm hover:bg-muted transition-colors"
                     onClick={() => startRename(project)}
                   >
-                    Rename
+                    Renommer
                   </button>
                   <button
                     className="w-full text-left px-3 py-1.5 text-sm text-destructive hover:bg-muted transition-colors"
@@ -166,7 +166,7 @@ export function Sidebar({ projects, selectedId, loading, onSelect, onLogout, onL
                       onDeleteRequest(project.id)
                     }}
                   >
-                    Delete
+                    Supprimer
                   </button>
                 </div>
               )}

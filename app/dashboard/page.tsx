@@ -358,8 +358,15 @@ export default function Dashboard() {
         {/* Scrollable workspace */}
         <main className="flex-1 overflow-y-auto px-8 py-6">
           {error && (
-            <div className="mb-5 rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-              {error}
+            <div className="mb-5 rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive flex items-start justify-between gap-3">
+              <span>{error}</span>
+              <button
+                onClick={() => setError("")}
+                className="shrink-0 text-destructive/60 hover:text-destructive transition-colors leading-none mt-0.5"
+                aria-label="Fermer"
+              >
+                ✕
+              </button>
             </div>
           )}
 
@@ -404,13 +411,13 @@ export default function Dashboard() {
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/40" onClick={() => setDeleteTargetId(null)} />
           <div className="relative bg-background rounded-lg border shadow-lg p-6 w-80">
-            <p className="text-sm font-medium mb-4">Delete this project?</p>
+            <p className="text-sm font-medium mb-4">Supprimer ce projet ?</p>
             <div className="flex gap-2 justify-end">
               <Button variant="ghost" size="sm" onClick={() => setDeleteTargetId(null)}>
-                Cancel
+                Annuler
               </Button>
               <Button variant="destructive" size="sm" onClick={handleDeleteProject}>
-                Delete
+                Supprimer
               </Button>
             </div>
           </div>

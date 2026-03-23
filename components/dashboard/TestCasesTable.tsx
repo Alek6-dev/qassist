@@ -131,7 +131,7 @@ export function TestCasesTable({
         <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
           <FlaskConical className="h-5 w-5 text-muted-foreground/40" />
         </div>
-        <p className="text-sm text-muted-foreground">No test cases yet.</p>
+        <p className="text-sm text-muted-foreground">Aucun cas de test.</p>
         <p className="text-xs text-muted-foreground/60">Générez-les depuis l'onglet Exigences.</p>
       </div>
     )
