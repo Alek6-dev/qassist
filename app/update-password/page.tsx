@@ -17,33 +17,29 @@ export default function UpdatePasswordPage() {
   const [showConfirm, setShowConfirm] = useState(false)
 
   useEffect(() => {
-    // Flux PKCE : ?code= dans les query params
-    const code = new URLSearchParams(window.location.search).get('code')
-    if (code) {
-      supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
-        if (!error) setReady(true)
-        else setMessage({ type: 'error', text: 'Lien invalide ou expiré. Demandez un nouveau lien.' })
+    // createBrowserClient auto-échange le ?code= PKCE au chargement de la page.
+    // On écoute le résultat via onAuthStateChange.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY') setReady(true)
+      if (event === 'SIGNED_IN' && session) setReady(true)
+    })
+
+    // Fallback : session déjà établie si l'event a été émis avant le listener
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) setReady(true)
+    })
+
+    // Timeout : si rien ne se passe après 5s, le lien est invalide
+    const timeout = setTimeout(() => {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (!session) setMessage({ type: 'error', text: 'Lien invalide ou expiré. Demandez un nouveau lien.' })
       })
-      return
+    }, 5000)
+
+    return () => {
+      subscription.unsubscribe()
+      clearTimeout(timeout)
     }
-
-    // Flux implicite : tokens dans le hash #access_token=...&type=recovery
-    // On parse le hash directement plutôt que d'attendre l'event (trop tardif avec React)
-    const hashParams = new URLSearchParams(window.location.hash.substring(1))
-    const accessToken = hashParams.get('access_token')
-    const refreshToken = hashParams.get('refresh_token')
-    const type = hashParams.get('type')
-
-    if (accessToken && type === 'recovery') {
-      supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken ?? '' })
-        .then(({ error }) => {
-          if (!error) setReady(true)
-          else setMessage({ type: 'error', text: 'Lien invalide ou expiré. Demandez un nouveau lien.' })
-        })
-      return
-    }
-
-    setMessage({ type: 'error', text: 'Lien invalide ou expiré. Demandez un nouveau lien.' })
   }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
