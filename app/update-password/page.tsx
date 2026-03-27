@@ -68,8 +68,8 @@ export default function UpdatePasswordPage() {
     <div className="min-h-screen bg-background flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="flex flex-col items-center mb-8">
-          <Image src="/Logo-fond-blanc.svg" alt="QAssist" width={40} height={40} className="mb-3" />
-          <h1 className="text-xl font-semibold tracking-tight text-foreground">QAssist</h1>
+          <Image src="/Logo-MyQAssist.svg" alt="MyQAssist" width={40} height={40} className="mb-3" />
+          <h1 className="text-xl font-semibold tracking-tight text-foreground">MyQAssist</h1>
         </div>
 
         <div className="border rounded-xl shadow-sm p-6 bg-background">

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { parseAIJson } from '@/lib/ai/parseAIJson'
+import { checkQuota } from '@/lib/quota'
 export const runtime = 'nodejs'
 
 async function insertRequirements(
@@ -70,6 +71,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
+      )
+    }
+
+    // Vérification quota plan
+    const quota = await checkQuota(user.id, 'generate_requirements')
+    if (!quota.allowed) {
+      return NextResponse.json(
+        { error: quota.reason, quota_exceeded: true, plan: quota.plan },
+        { status: 403 }
       )
     }
 

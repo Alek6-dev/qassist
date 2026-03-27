@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
 import { parseAIJson } from "@/lib/ai/parseAIJson"
+import { checkQuota } from "@/lib/quota"
 
 export const runtime = "nodejs"
 
@@ -245,7 +246,16 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  // 5. Check API key
+  // 5. Vérification quota plan (REQ max par projet)
+  const quota = await checkQuota(user.id, 'generate_test_cases', projectId)
+  if (!quota.allowed) {
+    return NextResponse.json(
+      { error: quota.reason, quota_exceeded: true, plan: quota.plan },
+      { status: 403 }
+    )
+  }
+
+  // 6. Check API key
   const apiKey = (process.env.ANTHROPIC_API_KEY || "").trim()
   if (!apiKey) {
     return NextResponse.json(
@@ -254,7 +264,7 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  // 6. Split requirements into batches
+  // 7. Split requirements into batches
   const batches: Array<typeof requirements> = []
   for (let i = 0; i < requirements.length; i += BATCH_SIZE) {
     batches.push(requirements.slice(i, i + BATCH_SIZE))
@@ -265,7 +275,7 @@ export async function POST(request: NextRequest) {
     console.log(`[generate-test-cases] ${requirements.length} requirements → ${batches.length} batch(es) of ${BATCH_SIZE}`)
   }
 
-  // 7. Call AI for each batch sequentially, accumulate raw test cases
+  // 8. Call AI for each batch sequentially, accumulate raw test cases
   const allRawTestCases: any[] = []
   let tcOffset = 0
 
@@ -287,7 +297,7 @@ export async function POST(request: NextRequest) {
     console.log(`[generate-test-cases] ${allRawTestCases.length} TC(s) received across all batches`)
   }
 
-  // 8. Map all raw TCs → DB rows
+  // 9. Map all raw TCs → DB rows
   const reqCodeToId = new Map<string, string>()
   for (const r of requirements) {
     reqCodeToId.set(r.req_code, r.id)
@@ -363,7 +373,7 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  // 9. Delete existing test_cases (only after successful AI generation across all batches)
+  // 10. Delete existing test_cases (only after successful AI generation across all batches)
   const { error: deleteError } = await supabase
     .from("test_cases")
     .delete()
@@ -376,7 +386,7 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  // 10. Insert
+  // 11. Insert
   const { data: inserted, error: insertError } = await supabase
     .from("test_cases")
     .insert(toInsert)

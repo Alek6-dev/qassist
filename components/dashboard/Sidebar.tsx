@@ -5,8 +5,18 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { FileText, FolderKanban, LogOut, MoreHorizontal } from "lucide-react"
 import Image from "next/image"
+import Link from "next/link"
 
 type Project = { id: string; title: string; created_at: string | null }
+
+type Plan = 'free' | 'starter' | 'pro'
+
+const PLAN_LABELS: Record<Plan, string> = { free: 'Free', starter: 'Starter', pro: 'Pro' }
+const PLAN_COLORS: Record<Plan, string> = {
+  free: 'bg-gray-100 text-gray-500',
+  starter: 'bg-indigo-50 text-indigo-600',
+  pro: 'bg-violet-50 text-violet-600',
+}
 
 interface SidebarProps {
   projects: Project[]
@@ -17,9 +27,10 @@ interface SidebarProps {
   onLogoClick: () => void
   onRename: (id: string, newTitle: string) => void
   onDeleteRequest: (id: string) => void
+  plan?: Plan
 }
 
-export function Sidebar({ projects, selectedId, loading, onSelect, onLogout, onLogoClick, onRename, onDeleteRequest }: SidebarProps) {
+export function Sidebar({ projects, selectedId, loading, onSelect, onLogout, onLogoClick, onRename, onDeleteRequest, plan = 'free' }: SidebarProps) {
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
   const [renamingId, setRenamingId] = useState<string | null>(null)
@@ -63,13 +74,13 @@ export function Sidebar({ projects, selectedId, loading, onSelect, onLogout, onL
         className="h-14 flex items-center gap-2.5 px-4 border-b shrink-0 w-full hover:bg-muted/40 transition-colors"
       >
         <Image
-          src="/Logo-fond-blanc.svg"
-          alt="QAssist logo"
+          src="/Logo-MyQAssist.svg"
+          alt="MyQAssist logo"
           width={24}
           height={24}
           className="shrink-0"
         />
-        <span className="font-semibold text-sm tracking-tight">QAssist</span>
+        <span className="font-semibold text-sm tracking-tight">MyQAssist</span>
       </button>
 
       {/* Projects section */}
@@ -175,8 +186,21 @@ export function Sidebar({ projects, selectedId, loading, onSelect, onLogout, onL
         </nav>
       </div>
 
+      {/* Plan badge + billing link */}
+      <div className="px-3 pt-3 pb-1 border-t">
+        <Link
+          href="/dashboard/billing"
+          className="flex items-center justify-between px-2.5 py-1.5 rounded-md hover:bg-muted/60 transition-colors group"
+        >
+          <span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">Mon plan</span>
+          <span className={cn("text-[11px] font-semibold px-2 py-0.5 rounded-full", PLAN_COLORS[plan])}>
+            {PLAN_LABELS[plan]}
+          </span>
+        </Link>
+      </div>
+
       {/* Logout */}
-      <div className="px-3 py-3 border-t">
+      <div className="px-3 py-2">
         <Button
           variant="ghost"
           size="sm"
@@ -184,7 +208,7 @@ export function Sidebar({ projects, selectedId, loading, onSelect, onLogout, onL
           onClick={onLogout}
         >
           <LogOut className="h-3.5 w-3.5" />
-          Logout
+          Déconnexion
         </Button>
       </div>
     </aside>

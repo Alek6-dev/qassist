@@ -189,7 +189,7 @@ export function WorkspaceProject({
     const a = document.createElement("a")
     a.href = url
     const slug = projectName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
-    a.download = slug ? `qassist-test-cases-${slug}.csv` : "qassist-test-cases.csv"
+    a.download = slug ? `myqassist-test-cases-${slug}.csv` : "myqassist-test-cases.csv"
     a.click()
     URL.revokeObjectURL(url)
   }

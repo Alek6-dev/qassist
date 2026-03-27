@@ -61,13 +61,13 @@ export default function LoginPage() {
         {/* Logo + tagline */}
         <div className="flex flex-col items-center mb-8">
           <Image
-            src="/Logo-fond-blanc.svg"
-            alt="QAssist"
+            src="/Logo-MyQAssist.svg"
+            alt="MyQAssist"
             width={40}
             height={40}
             className="mb-3"
           />
-          <h1 className="text-xl font-semibold tracking-tight text-foreground">QAssist</h1>
+          <h1 className="text-xl font-semibold tracking-tight text-foreground">MyQAssist</h1>
         </div>
 
         {/* Card */}

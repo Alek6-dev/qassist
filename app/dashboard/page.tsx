@@ -10,12 +10,15 @@ import { User } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 type Project = { id: string; title: string; created_at: string | null }
+type Plan = 'free' | 'starter' | 'pro'
 
 export default function Dashboard() {
   const router = useRouter()
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
+  const [plan, setPlan] = useState<Plan>('free')
+  const [quotaModal, setQuotaModal] = useState<{ message: string } | null>(null)
   const [specInput, setSpecInput] = useState("")
 
   const [requirements, setRequirements] = useState<any[]>([])
@@ -177,6 +180,10 @@ export default function Dashboard() {
       if (res.ok) {
         await fetchTestCases(selectedProjectId)
         setActiveView("testcases")
+      } else if (res.status === 403) {
+        const data = await res.json()
+        if (data.quota_exceeded) setQuotaModal({ message: data.error })
+        else setError(`Erreur ${res.status} : ${await res.text()}`)
       } else {
         const text = await res.text()
         setError(`Erreur génération test cases ${res.status} : ${text}`)
@@ -221,6 +228,10 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchProjects()
+    fetch('/api/subscription')
+      .then(r => r.json())
+      .then(d => { if (d.plan) setPlan(d.plan) })
+      .catch(() => {})
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -267,6 +278,10 @@ export default function Dashboard() {
           await fetchProjects()
           if (data.project?.id) setSelectedProjectId(data.project.id)
         }
+      } else if (res.status === 403) {
+        const data = await res.json()
+        if (data.quota_exceeded) setQuotaModal({ message: data.error })
+        else setError(`Erreur ${res.status} : ${await res.text()}`)
       } else {
         const text = await res.text()
         setError(`Erreur ${res.status} : ${text}`)
@@ -333,6 +348,30 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+      {/* Quota exceeded modal */}
+      {quotaModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+            <h2 className="text-lg font-semibold text-gray-900 mb-2">Limite atteinte</h2>
+            <p className="text-sm text-gray-600 mb-5">{quotaModal.message}</p>
+            <div className="flex gap-2">
+              <a
+                href="/dashboard/billing"
+                className="flex-1 text-center py-2 px-4 bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-medium rounded-md transition-colors"
+              >
+                Voir les plans
+              </a>
+              <button
+                onClick={() => setQuotaModal(null)}
+                className="flex-1 py-2 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-md transition-colors"
+              >
+                Fermer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <Sidebar
         projects={projects}
         selectedId={selectedProjectId}
@@ -342,6 +381,7 @@ export default function Dashboard() {
         onLogoClick={() => setSelectedProjectId(null)}
         onRename={handleRenameProject}
         onDeleteRequest={setDeleteTargetId}
+        plan={plan}
       />
 
       <div className="flex-1 flex flex-col overflow-hidden">

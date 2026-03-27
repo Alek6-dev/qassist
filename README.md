@@ -35,9 +35,9 @@ The easiest way to deploy your Next.js app is to use the [Vercel Platform](https
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
 
-# QAssist
+# MyQAssist
 
-QAssist est un SaaS en cours de développement destiné aux professionnels QA.
+MyQAssist est un SaaS en cours de développement destiné aux professionnels QA.
 Objectif : transformer des spécifications fonctionnelles en exigences structurées et cas de test exploitables.
 
 ---

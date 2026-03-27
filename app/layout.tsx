@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "QAssist",
+  title: "MyQAssist",
   description: "Transform specifications into structured requirements and test cases",
 };
 
