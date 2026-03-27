@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
 
       // Renouvellement mensuel
       case 'invoice.payment_succeeded': {
-        const invoice = event.data.object as Stripe.Invoice
+        const invoice = event.data.object as Stripe.Invoice & { subscription: string | null; billing_reason: string }
         if (!invoice.subscription) break
 
         // Ignorer les invoices de première création (déjà gérées par checkout.session.completed)
@@ -164,7 +164,7 @@ export async function POST(req: NextRequest) {
 
       // Paiement échoué
       case 'invoice.payment_failed': {
-        const invoice = event.data.object as Stripe.Invoice
+        const invoice = event.data.object as Stripe.Invoice & { subscription: string | null }
         if (!invoice.subscription) break
 
         const sub = await stripe.subscriptions.retrieve(invoice.subscription as string)
