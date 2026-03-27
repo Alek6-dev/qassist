@@ -40,13 +40,14 @@ function BrowserFrame({
           <div className={`w-3 h-3 rounded-full ${dark ? 'bg-[#febc2e]' : 'bg-gray-300'}`} />
           <div className={`w-3 h-3 rounded-full ${dark ? 'bg-[#28c840]' : 'bg-gray-300'}`} />
         </div>
-        <div
-          className={`flex-1 rounded-md px-3 py-1 text-xs text-center truncate ${
+        <a
+          href="/dashboard"
+          className={`flex-1 rounded-md px-3 py-1 text-xs text-center truncate cursor-pointer hover:underline ${
             dark ? 'bg-[#2c2c2e] text-gray-500' : 'bg-white text-gray-400'
           }`}
         >
-          myqassist.vercel.app
-        </div>
+          myqassist.fr
+        </a>
       </div>
       <Image
         src={src}
@@ -66,22 +67,22 @@ const steps = [
   {
     number: '01',
     label: 'Spécification',
-    description: 'Collez votre spec ou uploadez un PDF jusqu\'à 5 Mo',
+    description: 'Collez votre spécification fonctionnelle ou uploadez un PDF jusqu\'à 5 Mo',
   },
   {
     number: '02',
     label: 'Exigences',
-    description: 'MyQAssist génère les REQ atomiques et détecte les ambiguïtés',
+    description: 'MyQAssist génère vos exigences fonctionnelles atomiques et détecte les ambiguïtés',
   },
   {
     number: '03',
     label: 'Cas de test',
-    description: 'Chaque exigence est couverte par des TC avec étapes et résultats',
+    description: 'Chaque exigence est couverte par un ou plusieurs cas de test avec étapes et résultats attendus',
   },
   {
     number: '04',
     label: 'Couverture',
-    description: 'Taux de couverture calculé et traçabilité REQ ↔ TC',
+    description: 'Taux de couverture calculé en temps réel, traçabilité exigences et cas de test',
   },
 ]
 
@@ -89,39 +90,39 @@ const steps = [
 const features = [
   {
     Icon: FileTextIcon,
-    title: 'Exigences atomiques',
+    title: 'Exigences fonctionnelles atomiques',
     description:
-      'Chaque spec est décomposée en exigences testables, numérotées REQ-001, REQ-002… éditables directement dans l\'interface.',
+      'Votre spécification fonctionnelle est décomposée en exigences testables et traçables, numérotées REQ-001, REQ-002, éditables directement dans l\'interface.',
   },
   {
     Icon: ListChecksIcon,
     title: 'Cas de test complets',
     description:
-      'Étapes détaillées, résultat attendu, priorité et catégorie générés automatiquement pour chaque exigence.',
+      'Étapes détaillées, résultat attendu, priorité et catégorie générés automatiquement pour chaque exigence fonctionnelle.',
   },
   {
     Icon: AlertCircleIcon,
     title: 'Détection d\'ambiguïtés',
     description:
-      'MyQAssist identifie les zones floues, règles métier manquantes et informations qui bloqueraient l\'écriture des tests.',
+      'MyQAssist identifie les zones floues, règles métier manquantes et informations qui bloqueraient la rédaction de vos cas de test.',
   },
   {
     Icon: BarChart3Icon,
-    title: 'Analyse de couverture',
+    title: 'Analyse de couverture de tests',
     description:
       'Chaque exigence est tracée à ses cas de test. Couverture directe, indirecte et non couverte calculées en temps réel.',
   },
   {
     Icon: PencilIcon,
-    title: 'Édition inline',
+    title: 'Édition directe',
     description:
-      'Modifiez exigences et cas de test directement dans l\'interface. Les modifications sont sauvegardées automatiquement.',
+      'Modifiez vos exigences et cas de test directement dans l\'interface. Les modifications sont sauvegardées automatiquement.',
   },
   {
     Icon: DownloadIcon,
     title: 'Export CSV',
     description:
-      'Exportez tous vos cas de test en CSV, prêts à être importés dans votre outil de gestion de tests.',
+      'Exportez tous vos cas de test en CSV, prêts à être importés dans votre outil de gestion de tests logiciels.',
   },
 ]
 
@@ -131,10 +132,10 @@ const plans = [
     price: '0€',
     period: '',
     description: 'Pour découvrir MyQAssist',
-    features: ['2 projets (à vie)', '30 exigences max', 'Cas de test complets', 'Export CSV', 'Analyse de couverture'],
+    features: ['2 projets (à vie)', '30 exigences max', 'Cas de test complets', 'Export CSV', 'Analyse de couverture', 'Historique 1 mois'],
     cta: 'Commencer gratuitement',
     href: '/login',
-    highlight: false,
+    highlight: true,
     available: true,
   },
   {
@@ -142,10 +143,10 @@ const plans = [
     price: '19€',
     period: '/mois',
     description: 'Pour les freelances QA',
-    features: ['5 projets par mois', '60 exigences max', 'Cas de test complets', 'Export CSV', 'Historique 6 mois'],
+    features: ['5 projets par mois', '60 exigences max', 'Cas de test complets', 'Export CSV', 'Analyse de couverture', 'Historique 6 mois'],
     cta: 'Bientôt disponible',
     href: '#',
-    highlight: true,
+    highlight: false,
     available: false,
   },
   {
@@ -158,6 +159,7 @@ const plans = [
       '120 exigences max',
       'Cas de test complets',
       'Export CSV',
+      'Analyse de couverture',
       'Historique complet',
       'Régénération sans perte',
       'Support prioritaire',
@@ -240,23 +242,22 @@ export default function LandingPage() {
           <div className="inline-flex items-center gap-2 bg-indigo-500/10 border border-indigo-500/20 rounded-full px-4 py-1.5 mb-8">
             <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" />
             <span className="text-indigo-300 text-xs font-medium tracking-wide">
-              QA assistant nouvelle génération
+              Assistant QA professionnel
             </span>
           </div>
 
           {/* H1 */}
           <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white tracking-tight leading-[1.06] mb-6">
-            Du cahier des charges
+            Générez vos cas de test
             <br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-violet-400">
-              aux cas de test en 60s
+              en 60 secondes
             </span>
           </h1>
 
           {/* Subtitle */}
           <p className="text-base sm:text-lg text-gray-400 max-w-2xl mx-auto mb-10 leading-relaxed">
-            Collez votre spécification fonctionnelle. MyQAssist génère vos exigences structurées,
-            cas de test complets et analyse la couverture — sans effort manuel.
+            À partir de votre spécification fonctionnelle ou de vos user stories, MyQAssist génère vos exigences, vos cas de test et analyse le taux de couverture.
           </p>
 
           {/* CTAs */}
@@ -282,7 +283,7 @@ export default function LandingPage() {
             <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-white to-transparent z-10 pointer-events-none" />
             <BrowserFrame
               src="/screenshots/cas_de_test.png"
-              alt="MyQAssist — vue des cas de test générés automatiquement depuis une spécification fonctionnelle"
+              alt="MyQAssist, vue des cas de test générés automatiquement depuis une spécification fonctionnelle"
               priority
               dark
             />
@@ -291,14 +292,14 @@ export default function LandingPage() {
       </section>
 
       {/* ── Workflow steps ───────────────────────────────────────────────────── */}
-      <section id="workflow" className="bg-white pt-20 pb-16">
+      <section id="workflow" className="bg-white pt-28 pb-24">
         <div className="max-w-5xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-12">
             <p className="text-xs font-semibold uppercase tracking-widest text-indigo-500 mb-3">
               Comment ça marche
             </p>
             <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 tracking-tight">
-              Du cahier des charges au rapport de couverture
+              De la spécification fonctionnelle au rapport de couverture
             </h2>
           </div>
 
@@ -342,7 +343,7 @@ export default function LandingPage() {
             {features.map(({ Icon, title, description }) => (
               <div
                 key={title}
-                className="p-5 rounded-xl border border-gray-100 hover:border-indigo-100 hover:bg-indigo-50/40 transition-colors"
+                className="p-5 rounded-xl border border-gray-100 hover:border-indigo-100 hover:shadow-md hover:shadow-indigo-100/50 hover:-translate-y-0.5 transition-all duration-200"
               >
                 <div className="w-9 h-9 rounded-lg bg-indigo-50 flex items-center justify-center mb-4">
                   <Icon className="w-4 h-4 text-indigo-500" strokeWidth={1.75} />
@@ -370,11 +371,11 @@ export default function LandingPage() {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-6 items-start">
+          <div className="grid md:grid-cols-3 gap-6 items-stretch">
             {plans.map((plan) => (
               <div
                 key={plan.name}
-                className={`relative rounded-2xl p-6 ${
+                className={`relative rounded-2xl p-6 flex flex-col ${
                   plan.highlight
                     ? 'bg-indigo-500 shadow-xl shadow-indigo-500/25 ring-2 ring-indigo-500'
                     : 'bg-white border border-gray-200'
@@ -382,7 +383,7 @@ export default function LandingPage() {
               >
                 {plan.highlight && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-indigo-600 text-white text-xs font-semibold px-3 py-1 rounded-full whitespace-nowrap">
-                    Le plus populaire
+                    Disponible dès maintenant
                   </div>
                 )}
 
@@ -421,7 +422,7 @@ export default function LandingPage() {
                   </p>
                 </div>
 
-                <ul className="space-y-2 mb-6">
+                <ul className="space-y-2 mb-6 flex-1">
                   {plan.features.map((f) => (
                     <li key={f} className="flex items-center gap-2 text-xs">
                       <CheckIcon
@@ -500,7 +501,7 @@ export default function LandingPage() {
             ))}
           </div>
           <p className="text-xs text-gray-400 mt-6">
-            Bientôt disponible — nous collectons les retours de nos premiers utilisateurs beta.
+            Bientôt disponible. Nous collectons les retours de nos premiers utilisateurs beta.
           </p>
         </div>
       </section>
@@ -519,7 +520,7 @@ export default function LandingPage() {
             Prêt à diviser par 5 le temps de rédaction de vos cas de test ?
           </h2>
           <p className="text-gray-400 text-sm mb-8">
-            Essayez MyQAssist gratuitement — aucune carte bancaire requise.
+            Essayez MyQAssist gratuitement, aucune carte bancaire requise.
           </p>
           <Link
             href="/login"
@@ -536,14 +537,17 @@ export default function LandingPage() {
         <div className="max-w-5xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-2.5">
             <Image src="/Logo-MyQAssist.svg" alt="MyQAssist" width={24} height={24} />
-            <span className="text-gray-500 text-sm">MyQAssist — Votre assistant QA</span>
+            <span className="text-gray-500 text-sm">MyQAssist, votre assistant QA</span>
           </div>
           <div className="flex items-center gap-6 text-xs text-gray-600">
-            <Link href="/login" className="hover:text-gray-400 transition-colors">
-              Connexion
+            <Link href="/mentions-legales" className="hover:text-gray-400 transition-colors">
+              Mentions légales
             </Link>
-            <Link href="/login" className="hover:text-gray-400 transition-colors">
-              Inscription
+            <Link href="/cgv" className="hover:text-gray-400 transition-colors">
+              CGV et CGU
+            </Link>
+            <Link href="/confidentialite" className="hover:text-gray-400 transition-colors">
+              Politique de confidentialité
             </Link>
             <span>© {new Date().getFullYear()} MyQAssist</span>
           </div>

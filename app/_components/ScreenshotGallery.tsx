@@ -12,7 +12,7 @@ const SLIDES = [
       'Votre spec est décomposée en exigences atomiques et testables, numérotées REQ-001, REQ-002… Chaque exigence est éditable inline et sauvegardée automatiquement.',
     bullets: [
       'Exigences atomiques et traçables',
-      'Édition inline avec autosave',
+      'Édition directe avec sauvegarde automatique',
       "Détection d'ambiguïtés intégrée",
     ],
   },
@@ -31,10 +31,10 @@ const SLIDES = [
     src: '/screenshots/taux_de_couverture.png',
     label: 'Analyse de couverture',
     description:
-      'Chaque exigence est tracée à ses cas de test. Le taux de couverture global est calculé en temps réel — couverture directe, indirecte et non couverte.',
+      'Chaque exigence est tracée à ses cas de test. Le taux de couverture global est calculé en temps réel : couverture directe, indirecte et non couverte.',
     bullets: [
       'Taux de couverture global',
-      'Traçabilité REQ ↔ TC',
+      'Traçabilité exigences et cas de test',
       'Export CSV en un clic',
     ],
   },
@@ -51,7 +51,7 @@ function BrowserChrome({ dark = false }: { dark?: boolean }) {
         <div className={`w-3 h-3 rounded-full ${dark ? 'bg-[#28c840]' : 'bg-gray-300'}`} />
       </div>
       <div className={`flex-1 rounded px-3 py-1 text-xs text-center truncate ${dark ? 'bg-[#2c2c2e] text-gray-500' : 'bg-white text-gray-400'}`}>
-        myqassist.vercel.app
+        myqassist.fr
       </div>
     </div>
   )
@@ -200,13 +200,13 @@ export default function ScreenshotGallery() {
         La roue de la souris sur la section avance/recule les cartes.
         Quand toutes les cartes ont été vues, le scroll reprend normalement.
       */}
-      <div ref={sectionRef} className="hidden md:block bg-gray-50 pt-10 pb-14">
+      <div ref={sectionRef} className="hidden md:block bg-gray-50 pt-10 pb-22">
 
         {/* Section header */}
         <div className="max-w-6xl mx-auto w-full px-6 mb-5">
           <p className="text-xs font-semibold uppercase tracking-widest text-indigo-500 mb-2">Le produit</p>
           <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 tracking-tight">
-            Un workflow QA complet, en une seule interface
+            Un outil de test logiciel complet, en une seule interface
           </h2>
         </div>
 
