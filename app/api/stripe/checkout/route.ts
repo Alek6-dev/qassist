@@ -67,8 +67,9 @@ export async function POST(req: NextRequest) {
       metadata: { user_id: user.id, plan },
     })
 
-    const periodEnd = updated.current_period_end
-      ? new Date(updated.current_period_end * 1000).toISOString()
+    const sub = updated as unknown as { current_period_end: number | null }
+    const periodEnd = sub.current_period_end
+      ? new Date(sub.current_period_end * 1000).toISOString()
       : null
 
     await serviceSupabase
