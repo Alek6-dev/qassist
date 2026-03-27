@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
 
         if (!userId || !plan || !session.subscription) break
 
-        const sub = await stripe.subscriptions.retrieve(session.subscription as string)
+        const sub = await stripe.subscriptions.retrieve(session.subscription as string) as unknown as { id: string; current_period_end: number }
         const periodEnd = !isNaN(sub.current_period_end)
           ? new Date(sub.current_period_end * 1000).toISOString()
           : null
@@ -99,7 +99,7 @@ export async function POST(req: NextRequest) {
         // Ignorer les invoices de première création (déjà gérées par checkout.session.completed)
         if (invoice.billing_reason === 'subscription_create') break
 
-        const sub = await stripe.subscriptions.retrieve(invoice.subscription as string)
+        const sub = await stripe.subscriptions.retrieve(invoice.subscription as string) as unknown as Stripe.Subscription & { current_period_end: number }
         const userId = await resolveUserId(sub)
         if (!userId) {
           console.warn('[webhook] invoice.payment_succeeded: user_id not found for sub', sub.id)
