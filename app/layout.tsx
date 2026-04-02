@@ -13,8 +13,22 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "MyQAssist",
-  description: "Transform specifications into structured requirements and test cases",
+  title: "MyQAssist — Générez vos cas de test en 60 secondes",
+  description: "MyQAssist transforme vos spécifications fonctionnelles en exigences, cas de test et analyse de couverture grâce à l'IA. Essai gratuit, sans carte bancaire.",
+  metadataBase: new URL('https://myqassist.fr'),
+  openGraph: {
+    title: "MyQAssist — Générez vos cas de test en 60 secondes",
+    description: "Transformez vos spécifications fonctionnelles en exigences, cas de test et analyse de couverture grâce à l'IA.",
+    url: 'https://myqassist.fr',
+    siteName: 'MyQAssist',
+    locale: 'fr_FR',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: "MyQAssist — Générez vos cas de test en 60 secondes",
+    description: "Transformez vos spécifications fonctionnelles en exigences, cas de test et analyse de couverture grâce à l'IA.",
+  },
 };
 
 export default function RootLayout({
