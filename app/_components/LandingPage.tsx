@@ -68,7 +68,7 @@ const steps = [
   {
     number: '01',
     label: 'Spécification',
-    description: 'Collez votre spécification fonctionnelle ou uploadez un PDF jusqu\'à 5 Mo',
+    description: 'Collez votre spécification fonctionnelle ou uploadez votre PDF jusqu\'à 5 Mo',
   },
   {
     number: '02',
@@ -99,7 +99,7 @@ const features = [
     Icon: ListChecksIcon,
     title: 'Cas de test complets',
     description:
-      'Étapes détaillées, résultat attendu, priorité et catégorie générés automatiquement pour chaque exigence fonctionnelle.',
+      'Étapes détaillées et éditables, résultat attendu, priorité et catégorie générés automatiquement pour chaque exigence fonctionnelle.',
   },
   {
     Icon: AlertCircleIcon,
@@ -371,7 +371,7 @@ export default function LandingPage() {
               Simple et transparent
             </h2>
             <p className="text-gray-500 text-sm mt-3">
-              Commencez gratuitement. Passez à un plan payant quand vous en avez besoin.
+              Essayez gratuitement. Passez à un plan payant quand vous en avez besoin.
             </p>
           </FadeIn>
 
