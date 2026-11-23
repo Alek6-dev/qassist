@@ -20,7 +20,7 @@ const SLIDES = [
     src: '/screenshots/cas_de_test.png',
     label: 'Cas de test complets',
     description:
-      'Pour chaque exigence, MyQAssist génère un ou plusieurs cas de test avec étapes détaillées, résultat attendu, priorité et catégorie. Rien à rédiger manuellement.',
+      'Pour chaque exigence, MyQAssist génère un ou plusieurs cas de test avec étapes détaillées, résultat attendu, priorité et catégorie.',
     bullets: [
       'Étapes et résultats attendus',
       'Priorités High / Medium / Low',
